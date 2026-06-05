@@ -97,6 +97,7 @@ const text = {
   developmentCost: "\u6d88\u8017\u91d1\u94b1",
   feeName: "\u8d39\u7528\u540d\u79f0",
   ruleName: "\u89c4\u5219\u540d\u79f0",
+  workerExpectedSalary: "\u521d\u59cb\u671f\u671b\u5de5\u8d44",
   smartLine: "\u667a\u80fd\u7ebf",
   smart: "\u667a\u80fd",
   automatic: "\u81ea\u52a8",
@@ -421,6 +422,10 @@ export function buildOperationPlan(
 
     if (hasCell(cells, text.lineName) && hasCell(cells, text.purchasePrice)) {
       header = "line_purchase";
+      continue;
+    }
+    if (hasCell(cells, text.workerExpectedSalary)) {
+      header = null;
       continue;
     }
     if (hasCell(cells, text.loanName)) {
