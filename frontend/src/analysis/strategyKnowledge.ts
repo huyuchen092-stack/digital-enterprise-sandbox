@@ -2,12 +2,14 @@ import type { DocumentUploadResponse } from "../types";
 
 export type StrategyKnowledgeSummary = {
   usableEvidenceCount: number;
+  builtInPrincipleCount: number;
+  supplementalEvidenceCount: number;
   pendingOcrCount: number;
   principles: string[];
   workflow: string[];
 };
 
-const rules = [
+const builtInRules = [
   {
     keywords: ["\u5173\u952e\u53d8\u91cf", "\u53c2\u8d5b\u7ec4\u6570"],
     principle: "\u5148\u6293\u53d6\u5173\u952e\u53d8\u91cf\uff1a\u4ea7\u7ebf\u3001\u7814\u53d1\u3001\u539f\u6599\u3001\u7ec4\u6570\u3001\u7ba1\u7406\u8d39\u3001\u8d37\u6b3e\u548c\u5e02\u573a\u7206\u53d1\u5e74\u3002"
@@ -54,7 +56,7 @@ const rules = [
   }
 ];
 
-const fallbackPrinciples = rules.map((rule) => rule.principle);
+const builtInPrinciples = builtInRules.map((rule) => rule.principle);
 
 export function buildStrategyKnowledgeSummary(
   upload: DocumentUploadResponse | undefined
@@ -62,14 +64,16 @@ export function buildStrategyKnowledgeSummary(
   const fragments = upload?.fragments ?? [];
   const usableFragments = fragments.filter((fragment) => fragment.kind !== "ocr_pending");
   const text = usableFragments.map((fragment) => fragment.text).join("\n");
-  const principles = rules
+  const matchedPrinciples = builtInRules
     .filter((rule) => rule.keywords.some((keyword) => text.includes(keyword)))
     .map((rule) => rule.principle);
 
-  const activePrinciples = principles.length > 0 ? principles : fallbackPrinciples;
+  const activePrinciples = Array.from(new Set([...builtInPrinciples, ...matchedPrinciples]));
 
   return {
-    usableEvidenceCount: usableFragments.length,
+    usableEvidenceCount: builtInPrinciples.length + usableFragments.length,
+    builtInPrincipleCount: builtInPrinciples.length,
+    supplementalEvidenceCount: usableFragments.length,
     pendingOcrCount: upload?.pending_ocr_count ?? 0,
     principles: activePrinciples,
     workflow: [

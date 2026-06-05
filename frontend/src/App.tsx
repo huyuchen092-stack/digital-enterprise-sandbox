@@ -25,7 +25,7 @@ const sidebarItems: Array<{ id: SectionId; label: string; Icon: typeof Database 
 const sectionCopy: Record<SectionId, { title: string; description: string }> = {
   import: {
     title: "资料导入",
-    description: "导入 Word、PDF、Excel、图片后，系统只提取有证据的规则和市场参数。"
+    description: "规则和市场文件用于提供具体数值；方案推演方法论已内置为默认决策依据。"
   },
   parameters: {
     title: "参数确认",
@@ -37,7 +37,7 @@ const sectionCopy: Record<SectionId, { title: string; description: string }> = {
   },
   simulation: {
     title: "方案推演",
-    description: "方案输出来自已确认参数和规则引擎，模型只做解释和辅助读取。"
+    description: "方案输出来自内置沙盘推演方法、已确认参数和规则引擎，模型只做解释和辅助读取。"
   }
 };
 
@@ -249,7 +249,7 @@ function App() {
       return <span className="upload-empty">尚未导入</span>;
     }
     const label =
-      documentType === "rules" ? "规则文件" : documentType === "market" ? "市场文件" : "逻辑知识库";
+      documentType === "rules" ? "规则文件" : documentType === "market" ? "市场文件" : "补充逻辑资料";
     const statusText =
       result.status === "ocr_pending"
         ? `OCR 待确认 ${result.pending_ocr_count} 处`
@@ -277,8 +277,8 @@ function App() {
           <div className="upload-strip">
             <Database size={22} aria-hidden="true" />
             <div>
-              <strong>待接入文件上传</strong>
-              <p>支持 Word、PDF、Excel、图片。模糊 OCR 会标记为待确认，不会编造数据。</p>
+              <strong>规则和市场数据上传</strong>
+              <p>支持 Word、PDF、Excel、图片。模糊 OCR 会标记为待确认，不会编造数据；做方案的方法论已经内置。</p>
             </div>
           </div>
           <div className="upload-grid">
@@ -305,25 +305,24 @@ function App() {
               {uploadingType === "market" ? <em>正在导入...</em> : renderUploadResult("market")}
             </label>
             <div className="upload-card">
-              <span>导入桌面逻辑知识库</span>
-              <small>读取方案推演AI、福建规则、大海/吉林案例、讲解资料与视频索引</small>
+              <span>内置方案推演依据</span>
+              <small>默认使用已学习的方案推演AI、福建规则、大海/吉林案例、讲解资料与视频关键帧结论</small>
               <button
                 className="action-button"
                 type="button"
                 onClick={() => void handleImportLocalKnowledge()}
                 disabled={importingKnowledge}
               >
-                {importingKnowledge ? "正在导入..." : "导入逻辑资料"}
+                {importingKnowledge ? "正在刷新..." : "刷新本地学习资料（可选）"}
               </button>
               {renderUploadResult("knowledge")}
-              {uploads.knowledge && (
-                <div className="knowledge-mini">
-                  <strong>可用方法论证据：{knowledgeSummary.usableEvidenceCount} 条</strong>
-                  <small>
-                    已转入推演流程，OCR 待确认 {knowledgeSummary.pendingOcrCount} 处不作最终依据。
-                  </small>
-                </div>
-              )}
+              <div className="knowledge-mini">
+                <strong>内置方法论依据：{knowledgeSummary.builtInPrincipleCount} 条</strong>
+                <small>
+                  补充资料 {knowledgeSummary.supplementalEvidenceCount} 条；OCR 待确认{" "}
+                  {knowledgeSummary.pendingOcrCount} 处只提醒复核，不作最终依据。
+                </small>
+              </div>
             </div>
           </div>
           {uploadError && (
@@ -486,7 +485,7 @@ function App() {
             <h4>推演方法论依据</h4>
             <div className="methodology-grid">
               <div className="quarter-card">
-                <h4>已读取的做方案思维</h4>
+                <h4>内置的做方案思维</h4>
                 <ul>
                   {knowledgeSummary.principles.slice(0, 6).map((principle) => (
                     <li key={principle}>{principle}</li>
@@ -503,7 +502,8 @@ function App() {
               </div>
             </div>
             <div className="evidence-note">
-              知识库可用片段 {knowledgeSummary.usableEvidenceCount} 条；OCR 待确认{" "}
+              内置方法论 {knowledgeSummary.builtInPrincipleCount} 条；补充资料{" "}
+              {knowledgeSummary.supplementalEvidenceCount} 条；OCR 待确认{" "}
               {knowledgeSummary.pendingOcrCount} 处只提醒复核，不直接生成最终数据。
             </div>
           </section>
