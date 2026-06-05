@@ -858,6 +858,11 @@ describe("App interactions", () => {
     expect(screen.getByText("Y4 / P2")).toBeInTheDocument();
     expect(screen.getAllByText("2600").length).toBeGreaterThan(0);
     expect(screen.getByText("5400")).toBeInTheDocument();
+    expect(screen.getByText("产线方案对标")).toBeInTheDocument();
+    expect(screen.getByText("广告时点现金")).toBeInTheDocument();
+    expect(screen.getByText("合理广告额")).toBeInTheDocument();
+    expect(screen.getByText("净利润")).toBeInTheDocument();
+    expect(screen.getAllByText(/前 \d+ 名/).length).toBeGreaterThan(0);
     expect(screen.getByText("第一年开局方案")).toBeInTheDocument();
     expect(screen.getAllByText(/智能线/).length).toBeGreaterThan(0);
     expect(

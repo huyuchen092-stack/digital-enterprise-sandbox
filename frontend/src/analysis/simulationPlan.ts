@@ -36,6 +36,30 @@ export type YearlyOperationDecision = {
   checks: string[];
 };
 
+export type EarlyStageFee = {
+  quarter: string;
+  label: string;
+  amount: number;
+};
+
+export type LinePlanOption = {
+  id: string;
+  lineName: string;
+  lineCount: number;
+  estimatedCapacity: number;
+  targetProduct: string | null;
+  targetOrderQuantity: number | null;
+  targetRank: number | null;
+  earlyFees: EarlyStageFee[];
+  preDeliveryFeeTotal: number;
+  adPointCash: number | null;
+  reasonableAdAmount: number | null;
+  grossMargin: number | null;
+  netProfit: number | null;
+  cashPositiveUntilDelivery: boolean;
+  notes: string[];
+};
+
 export type OperationPlan = {
   missingEvidence: string[];
   initialCapital: number | null;
@@ -54,6 +78,7 @@ export type OperationPlan = {
   openingActions: string[];
   riskChecks: string[];
   yearlyDecisions: YearlyOperationDecision[];
+  linePlanOptions: LinePlanOption[];
 };
 
 type HeaderKind =
@@ -94,6 +119,10 @@ function toNumber(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 function hasCell(cells: string[], needle: string) {
   return cells.some((cell) => cell.includes(needle));
 }
@@ -127,6 +156,142 @@ function chooseLoan(loans: LoanRule[]) {
     [...loans].sort((left, right) => left.rate - right.rate)[0] ??
     null
   );
+}
+
+function candidateLineCounts(line: ProductionLineRule, targetDemand: number | null, maxLineLimit: number | null) {
+  const limit = Math.max(1, Math.min(maxLineLimit ?? 16, 16));
+  const demandFit = targetDemand !== null ? Math.max(1, Math.ceil(targetDemand / line.capacity)) : 1;
+  return Array.from(new Set([Math.max(1, demandFit - 1), demandFit, Math.min(limit, demandFit + 1)]))
+    .filter((count) => count >= 1 && count <= limit)
+    .sort((left, right) => left - right);
+}
+
+function buildEarlyFees(
+  line: ProductionLineRule,
+  lineCount: number,
+  managementFee: number | null,
+  productDevelopment: ProductDevelopmentRule | null
+) {
+  const deliveryQuarter = Math.max(1, Math.min(4, Math.ceil(line.installCycle + line.productionCycle)));
+  const fees: EarlyStageFee[] = [
+    {
+      quarter: "Q1",
+      label: "\u8d2d\u4e70\u4ea7\u7ebf",
+      amount: line.purchasePrice * lineCount
+    }
+  ];
+
+  if (productDevelopment) {
+    fees.push({
+      quarter: "Q1",
+      label: "\u4ea7\u54c1\u7814\u53d1",
+      amount: productDevelopment.cost
+    });
+  }
+
+  if (managementFee !== null) {
+    for (let quarter = 1; quarter <= deliveryQuarter; quarter += 1) {
+      fees.push({
+        quarter: `Q${quarter}`,
+        label: `Q${quarter} \u7ba1\u7406\u8d39`,
+        amount: managementFee
+      });
+    }
+  }
+
+  return fees;
+}
+
+function sumFees(fees: EarlyStageFee[], predicate: (fee: EarlyStageFee) => boolean) {
+  return fees.filter(predicate).reduce((total, fee) => total + fee.amount, 0);
+}
+
+function buildLinePlanOptions(
+  lines: ProductionLineRule[],
+  initialCapital: number | null,
+  targetY1Row: MarketAnalysisRow | null,
+  targetY1Demand: number | null,
+  groupCount: number | null,
+  maxLineLimit: number | null,
+  managementFee: number | null,
+  productDevelopment: ProductDevelopmentRule | null
+): LinePlanOption[] {
+  if (lines.length === 0) {
+    return [];
+  }
+
+  return lines
+    .flatMap((line) =>
+      candidateLineCounts(line, targetY1Demand, maxLineLimit).map<LinePlanOption>((lineCount) => {
+        const estimatedCapacity = line.capacity * lineCount;
+        const targetOrderQuantity =
+          targetY1Row !== null ? Math.min(estimatedCapacity, targetY1Row.capacity) : null;
+        const rankByCapacity =
+          targetY1Demand !== null ? Math.max(1, Math.ceil(estimatedCapacity / targetY1Demand)) : null;
+        const targetRank =
+          rankByCapacity !== null && groupCount !== null ? Math.min(groupCount, rankByCapacity) : rankByCapacity;
+        const earlyFees = buildEarlyFees(line, lineCount, managementFee, productDevelopment);
+        const preAdExpense = sumFees(earlyFees, (fee) => fee.quarter === "Q1");
+        const preDeliveryFeeTotal = sumFees(earlyFees, () => true);
+        const reserveAfterAd = preDeliveryFeeTotal - preAdExpense;
+        const adPointCash = initialCapital !== null ? roundMoney(initialCapital - preAdExpense) : null;
+        const unitMargin = targetY1Row?.unitMargin ?? null;
+        const grossMargin =
+          targetOrderQuantity !== null && unitMargin !== null
+            ? roundMoney(targetOrderQuantity * unitMargin)
+            : null;
+        const adPressureRate =
+          targetRank !== null ? Math.min(0.28, 0.1 + Math.max(0, targetRank - 1) * 0.04) : 0.1;
+        const profitBoundAd = grossMargin !== null ? grossMargin * adPressureRate : null;
+        const cashBoundAd = adPointCash !== null ? Math.max(0, adPointCash - reserveAfterAd) : null;
+        const reasonableAdAmount =
+          profitBoundAd !== null && cashBoundAd !== null ? roundMoney(Math.min(profitBoundAd, cashBoundAd)) : null;
+        const managementFeeTotal = sumFees(earlyFees, (fee) => fee.label.includes("\u7ba1\u7406\u8d39"));
+        const netProfit =
+          grossMargin !== null && reasonableAdAmount !== null
+            ? roundMoney(grossMargin - reasonableAdAmount - (productDevelopment?.cost ?? 0) - managementFeeTotal)
+            : null;
+        const cashPositiveUntilDelivery =
+          adPointCash !== null &&
+          reasonableAdAmount !== null &&
+          adPointCash > 0 &&
+          adPointCash - reasonableAdAmount - reserveAfterAd > 0;
+
+        const notes = [
+          targetRank !== null
+            ? `\u6309\u7ec4\u5747\u5bb9\u91cf\u53e3\u5f84\uff0c\u8be5\u4ea7\u80fd\u9700\u5bf9\u6807\u5e7f\u544a\u524d ${targetRank} \u540d\u6216\u540c\u7ea7\u987a\u4f4d`
+            : "\u7f3a\u5c11\u7ec4\u6570\u6216\u7ec4\u5747\u9700\u6c42\uff0c\u65e0\u6cd5\u7ed9\u51fa\u5e7f\u544a\u6392\u540d\u76ee\u6807",
+          reasonableAdAmount !== null
+            ? `\u5408\u7406\u5e7f\u544a\u989d\u6309\u5355\u4f4d\u6bdb\u5229\u548c\u73b0\u91d1\u4f59\u989d\u53cd\u63a8\uff0c\u4e0d\u4ee3\u66ff\u5b9e\u9645\u5bf9\u624b\u5e7f\u544a\u8868`
+            : "\u7f3a\u5c11\u6bdb\u5229\u6216\u73b0\u91d1\u8bc1\u636e\uff0c\u4e0d\u7f16\u9020\u5e7f\u544a\u989d",
+          buildTransferPolicyCheck(line)
+        ];
+
+        return {
+          id: `${line.name}-${lineCount}`,
+          lineName: line.name,
+          lineCount,
+          estimatedCapacity,
+          targetProduct: targetY1Row?.product ?? null,
+          targetOrderQuantity,
+          targetRank,
+          earlyFees,
+          preDeliveryFeeTotal,
+          adPointCash,
+          reasonableAdAmount,
+          grossMargin,
+          netProfit,
+          cashPositiveUntilDelivery,
+          notes
+        };
+      })
+    )
+    .sort((left, right) => {
+      if (left.cashPositiveUntilDelivery !== right.cashPositiveUntilDelivery) {
+        return left.cashPositiveUntilDelivery ? -1 : 1;
+      }
+      return (right.netProfit ?? -Infinity) - (left.netProfit ?? -Infinity);
+    });
 }
 
 function buildTransferPolicyCheck(line: ProductionLineRule | null) {
@@ -361,11 +526,24 @@ export function buildOperationPlan(
     initialCapital !== null && plannedInvestment !== null ? initialCapital - plannedInvestment : null;
   const loanCapacity =
     initialCapital !== null && recommendedLoan ? initialCapital * recommendedLoan.limitMultiplier : null;
+  const linePlanOptions = buildLinePlanOptions(
+    lines,
+    initialCapital,
+    targetY1Row,
+    targetY1Demand,
+    groupCount,
+    maxLineLimit,
+    managementFee,
+    productDevelopment
+  );
 
   const openingActions = [
     recommendedLine && recommendedLineCount !== null
       ? `\u8d2d\u4e70 ${recommendedLineCount} \u6761${recommendedLine.name}\uff0c\u57fa\u7840\u5e74\u4ea7\u80fd\u4f30\u7b97 ${estimatedY1Capacity} \u4ef6`
       : "\u7b49\u5f85\u4ea7\u7ebf\u53c2\u6570\u540e\u8ba1\u7b97\u8d2d\u7ebf\u6570\u91cf",
+    linePlanOptions.length > 0
+      ? `\u57fa\u7840\u4ea7\u7ebf\u5bf9\u6807\uff1a\u5df2\u751f\u6210 ${linePlanOptions.length} \u4e2a\u5019\u9009\u65b9\u6848\uff0c\u6309\u51c0\u5229\u6da6\u548c\u4ea4\u8d27\u524d\u73b0\u91d1\u4e3a\u6b63\u6392\u5e8f`
+      : "\u57fa\u7840\u4ea7\u7ebf\u5bf9\u6807\u5f85\u4ea7\u7ebf\u3001\u5e02\u573a\u548c\u7ec4\u6570\u8bc1\u636e\u9f50\u5168\u540e\u751f\u6210",
     productDevelopment
       ? `\u542f\u52a8 ${productDevelopment.product} \u56fe\u7eb8\u7814\u53d1\uff0c\u8d39\u7528 ${productDevelopment.cost} \u5143\uff0c\u5468\u671f ${productDevelopment.cycles} \u5b63`
       : targetY1Row
@@ -416,6 +594,7 @@ export function buildOperationPlan(
     managementFee,
     openingActions,
     riskChecks,
-    yearlyDecisions
+    yearlyDecisions,
+    linePlanOptions
   };
 }

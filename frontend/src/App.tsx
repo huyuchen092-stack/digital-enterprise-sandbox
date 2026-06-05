@@ -618,6 +618,55 @@ function App() {
                 </ul>
               </div>
             </div>
+            {operationPlan.linePlanOptions.length > 0 && (
+              <div className="line-plan-section">
+                <h4>产线方案对标</h4>
+                <div className="market-table-wrap" aria-label="产线方案对标">
+                  <table className="market-table line-plan-table">
+                    <thead>
+                      <tr>
+                        <th>产线方案</th>
+                        <th>估算产能</th>
+                        <th>目标订单</th>
+                        <th>广告目标</th>
+                        <th>前期费用</th>
+                        <th>广告时点现金</th>
+                        <th>合理广告额</th>
+                        <th>净利润</th>
+                        <th>交货前现金</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {operationPlan.linePlanOptions.map((option) => (
+                        <tr key={option.id} className={option.cashPositiveUntilDelivery ? undefined : "warn"}>
+                          <td>
+                            <strong>
+                              {option.lineName} × {option.lineCount}
+                            </strong>
+                            <small>{option.targetProduct ? `主攻 ${option.targetProduct}` : "主攻待确认"}</small>
+                          </td>
+                          <td>{formatMarketNumber(option.estimatedCapacity)}</td>
+                          <td>{formatMarketNumber(option.targetOrderQuantity)}</td>
+                          <td>{option.targetRank ? `前 ${option.targetRank} 名` : "待确认"}</td>
+                          <td>
+                            <strong>{formatMarketNumber(option.preDeliveryFeeTotal)}</strong>
+                            <small>
+                              {option.earlyFees
+                                .map((fee) => `${fee.label} ${formatMarketNumber(fee.amount)}`)
+                                .join("；")}
+                            </small>
+                          </td>
+                          <td>{formatMarketNumber(option.adPointCash)}</td>
+                          <td>{formatMarketNumber(option.reasonableAdAmount)}</td>
+                          <td>{formatMarketNumber(option.netProfit)}</td>
+                          <td>{option.cashPositiveUntilDelivery ? "保持为正" : "需减线/融资"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </section>
         )}
 

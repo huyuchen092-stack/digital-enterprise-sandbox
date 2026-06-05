@@ -424,6 +424,33 @@ tr.warn {
   font-size: 14px;
 }
 
+.line-plan-table {
+  min-width: 1180px;
+}
+
+.line-plan-section {
+  display: grid;
+  gap: 12px;
+}
+
+.line-plan-section h4 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.line-plan-table td strong,
+.line-plan-table td small {
+  display: block;
+}
+
+.line-plan-table td small {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .evidence-source {
   color: #334155;
   font-weight: 700;
