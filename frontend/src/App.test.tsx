@@ -2,16 +2,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import App from "./App";
-import { importLocalKnowledge, uploadDocument } from "./api/client";
+import { uploadDocument } from "./api/client";
 
 vi.mock("./api/client", () => ({
-  importLocalKnowledge: vi.fn(),
   uploadDocument: vi.fn()
 }));
 
 describe("App interactions", () => {
   beforeEach(() => {
-    vi.mocked(importLocalKnowledge).mockReset();
     vi.mocked(uploadDocument).mockReset();
   });
 
@@ -847,9 +845,9 @@ describe("App interactions", () => {
     await user.click(screen.getByRole("button", { name: "确认手动组数" }));
     await user.click(screen.getByRole("button", { name: "方案推演" }));
 
-    expect(await screen.findByText("推演方法论依据")).toBeInTheDocument();
-    expect(screen.getByText("内置的做方案思维")).toBeInTheDocument();
-    expect(screen.getByText(/内置方法论 13 条；补充资料 0 条/)).toBeInTheDocument();
+    expect(screen.queryByText("推演方法论依据")).not.toBeInTheDocument();
+    expect(screen.queryByText("内置的做方案思维")).not.toBeInTheDocument();
+    expect(screen.queryByText(/内置方法论 13 条；补充资料/)).not.toBeInTheDocument();
     expect(await screen.findByText("四年市场推演")).toBeInTheDocument();
     expect(screen.getAllByText("Y1").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Y2").length).toBeGreaterThan(0);
@@ -879,32 +877,8 @@ describe("App interactions", () => {
     expect(screen.queryByText(/仍需产线参数/)).not.toBeInTheDocument();
   });
 
-  test("uses built-in strategy methodology and treats local knowledge as optional supplement", async () => {
+  test("hides local knowledge controls while keeping built-in strategy methodology", async () => {
     const user = userEvent.setup();
-    vi.mocked(importLocalKnowledge).mockResolvedValueOnce({
-      id: 20,
-      filename: "桌面逻辑知识库",
-      document_type: "knowledge",
-      status: "ocr_pending",
-      fragment_count: 3,
-      pending_ocr_count: 1,
-      fragments: [
-        {
-          text: "关键变量 参赛组数 产品毛利 材料费 组均容量 总容量 逐季推现金流 转产周期 自动 P3 P4 研发",
-          source_file: "方案推演AI.md",
-          source_location: "markdown",
-          confidence: 1,
-          kind: "methodology"
-        },
-        {
-          text: "视频索引待确认",
-          source_file: "讲解视频.mp4",
-          source_location: "video",
-          confidence: 0,
-          kind: "ocr_pending"
-        }
-      ]
-    });
     vi.mocked(uploadDocument)
       .mockResolvedValueOnce({
         id: 21,
@@ -992,10 +966,8 @@ describe("App interactions", () => {
 
     render(<App />);
 
-    expect(screen.getByText("内置方法论依据：13 条")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "刷新本地学习资料（可选）" }));
-    expect(await screen.findByText(/补充资料 1 条；OCR 待确认 1 处只提醒复核/)).toBeInTheDocument();
+    expect(screen.queryByText("内置方案推演依据")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "刷新本地学习资料（可选）" })).not.toBeInTheDocument();
 
     await user.upload(
       screen.getByLabelText("导入规则文件"),
@@ -1011,14 +983,15 @@ describe("App interactions", () => {
     );
     await user.click(screen.getByRole("button", { name: "方案推演" }));
 
-    expect(await screen.findByText("推演方法论依据")).toBeInTheDocument();
-    expect(screen.getByText("内置的做方案思维")).toBeInTheDocument();
-    expect(screen.getByText(/内置方法论 13 条；补充资料 1 条/)).toBeInTheDocument();
-    expect(screen.getByText(/产品优先级按单位毛利排序/)).toBeInTheDocument();
-    expect(screen.getByText(/自动线转产不按名字一刀切/)).toBeInTheDocument();
-    expect(screen.getByText(/国10类赛题要按市场规模分叉/)).toBeInTheDocument();
-    expect(screen.getByText(/推方案必须先跑预算表/)).toBeInTheDocument();
-    expect(screen.getByText("本次推演执行流程")).toBeInTheDocument();
-    expect(screen.getByText(/抓取规则参数/)).toBeInTheDocument();
+    expect(await screen.findByText("四年市场推演")).toBeInTheDocument();
+    expect(screen.queryByText("推演方法论依据")).not.toBeInTheDocument();
+    expect(screen.queryByText("内置的做方案思维")).not.toBeInTheDocument();
+    expect(screen.queryByText(/内置方法论 13 条；补充资料/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/产品优先级按单位毛利排序/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/自动线转产不按名字一刀切/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/国10类赛题要按市场规模分叉/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/推方案必须先跑预算表/)).not.toBeInTheDocument();
+    expect(screen.queryByText("本次推演执行流程")).not.toBeInTheDocument();
+    expect(screen.queryByText(/抓取规则参数/)).not.toBeInTheDocument();
   });
 });
