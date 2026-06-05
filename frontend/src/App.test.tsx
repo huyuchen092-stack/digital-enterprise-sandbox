@@ -2,14 +2,16 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import App from "./App";
-import { uploadDocument } from "./api/client";
+import { importLocalKnowledge, uploadDocument } from "./api/client";
 
 vi.mock("./api/client", () => ({
+  importLocalKnowledge: vi.fn(),
   uploadDocument: vi.fn()
 }));
 
 describe("App interactions", () => {
   beforeEach(() => {
+    vi.mocked(importLocalKnowledge).mockReset();
     vi.mocked(uploadDocument).mockReset();
   });
 
@@ -867,5 +869,144 @@ describe("App interactions", () => {
     expect(screen.getAllByText(/本年需新增 4 条/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/现金流明细表/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/仍需产线参数/)).not.toBeInTheDocument();
+  });
+
+  test("turns imported local knowledge into visible strategy methodology", async () => {
+    const user = userEvent.setup();
+    vi.mocked(importLocalKnowledge).mockResolvedValueOnce({
+      id: 20,
+      filename: "桌面逻辑知识库",
+      document_type: "knowledge",
+      status: "ocr_pending",
+      fragment_count: 3,
+      pending_ocr_count: 1,
+      fragments: [
+        {
+          text: "关键变量 参赛组数 产品毛利 材料费 组均容量 总容量 逐季推现金流 转产周期 自动 P3 P4 研发",
+          source_file: "方案推演AI.md",
+          source_location: "markdown",
+          confidence: 1,
+          kind: "methodology"
+        },
+        {
+          text: "视频索引待确认",
+          source_file: "讲解视频.mp4",
+          source_location: "video",
+          confidence: 0,
+          kind: "ocr_pending"
+        }
+      ]
+    });
+    vi.mocked(uploadDocument)
+      .mockResolvedValueOnce({
+        id: 21,
+        filename: "rules.docx",
+        document_type: "rules",
+        status: "extracted",
+        fragment_count: 6,
+        pending_ocr_count: 0,
+        fragments: [
+          {
+            text: "一、初始资本：780000元",
+            source_file: "rules.docx",
+            source_location: "paragraph 1",
+            confidence: 1,
+            kind: "text"
+          },
+          {
+            text: "线型名称 | 购买价格（元） | 安装周期（季） | 生产周期（季） | 产量 | 转产周期（季） | 转产价格（元）",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "智能线 | 300000 | 2 | 1 | 22 | 0 | 0",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "贷款名称 | 额度上限（倍） | 贷款时间（季） | 还款方式 | 利率（%）",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "长期银行融资 | 3 | 8 | 每季付息 | 3%",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "规则名称 | 规则值",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "生产线上限 | 16",
+            source_file: "rules.docx",
+            source_location: "table",
+            confidence: 1,
+            kind: "table"
+          }
+        ]
+      })
+      .mockResolvedValueOnce({
+        id: 22,
+        filename: "market.xlsx",
+        document_type: "market",
+        status: "extracted",
+        fragment_count: 2,
+        pending_ocr_count: 0,
+        fragments: [
+          {
+            text: "组数 20",
+            source_file: "market.xlsx",
+            source_location: "sheet 参数",
+            confidence: 1,
+            kind: "table"
+          },
+          {
+            text: "Y1 P2 市场容量 160 价格 40 成本 18",
+            source_file: "market.xlsx",
+            source_location: "sheet 市场",
+            confidence: 1,
+            kind: "table"
+          }
+        ]
+      });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "导入逻辑资料" }));
+    expect(await screen.findByText("可用方法论证据：1 条")).toBeInTheDocument();
+    expect(screen.getByText(/OCR 待确认 1 处不作最终依据/)).toBeInTheDocument();
+
+    await user.upload(
+      screen.getByLabelText("导入规则文件"),
+      new File(["rule text"], "rules.docx", {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      })
+    );
+    await user.upload(
+      screen.getByLabelText("导入市场文件"),
+      new File(["market text"], "market.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      })
+    );
+    await user.click(screen.getByRole("button", { name: "方案推演" }));
+
+    expect(await screen.findByText("推演方法论依据")).toBeInTheDocument();
+    expect(screen.getByText("已读取的做方案思维")).toBeInTheDocument();
+    expect(screen.getByText(/产品优先级按单位毛利排序/)).toBeInTheDocument();
+    expect(screen.getByText(/自动线转产不按名字一刀切/)).toBeInTheDocument();
+    expect(screen.getByText("本次推演执行流程")).toBeInTheDocument();
+    expect(screen.getByText(/抓取规则参数/)).toBeInTheDocument();
   });
 });

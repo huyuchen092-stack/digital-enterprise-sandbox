@@ -9,6 +9,7 @@ import {
 } from "./analysis/marketAnalysis";
 import { buildRuleParameters } from "./analysis/ruleParameters";
 import { buildOperationPlan } from "./analysis/simulationPlan";
+import { buildStrategyKnowledgeSummary } from "./analysis/strategyKnowledge";
 import { ParameterTable } from "./components/ParameterTable";
 import type { DocumentType, DocumentUploadResponse, ParameterCandidate } from "./types";
 
@@ -103,6 +104,10 @@ function App() {
   const operationPlan = useMemo(
     () => buildOperationPlan(uploads.rules, marketAnalysis.rows, marketAnalysis.groupCount),
     [marketAnalysis.groupCount, marketAnalysis.rows, uploads.rules]
+  );
+  const knowledgeSummary = useMemo(
+    () => buildStrategyKnowledgeSummary(uploads.knowledge),
+    [uploads.knowledge]
   );
 
   function updateParameterStatus(key: string, status: ParameterCandidate["status"]) {
@@ -311,6 +316,14 @@ function App() {
                 {importingKnowledge ? "正在导入..." : "导入逻辑资料"}
               </button>
               {renderUploadResult("knowledge")}
+              {uploads.knowledge && (
+                <div className="knowledge-mini">
+                  <strong>可用方法论证据：{knowledgeSummary.usableEvidenceCount} 条</strong>
+                  <small>
+                    已转入推演流程，OCR 待确认 {knowledgeSummary.pendingOcrCount} 处不作最终依据。
+                  </small>
+                </div>
+              )}
             </div>
           </div>
           {uploadError && (
@@ -466,6 +479,34 @@ function App() {
           <div className="state-panel warning-panel" role="alert">
             还有 {unconfirmedCriticalCount} 个关键参数需人工确认，未确认参数不可进入最终方案。
           </div>
+        )}
+
+        {marketAnalysis.rows.length > 0 && (
+          <section className="simulation-card" aria-label="推演方法论依据">
+            <h4>推演方法论依据</h4>
+            <div className="methodology-grid">
+              <div className="quarter-card">
+                <h4>已读取的做方案思维</h4>
+                <ul>
+                  {knowledgeSummary.principles.slice(0, 6).map((principle) => (
+                    <li key={principle}>{principle}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="quarter-card">
+                <h4>本次推演执行流程</h4>
+                <ol>
+                  {knowledgeSummary.workflow.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+            <div className="evidence-note">
+              知识库可用片段 {knowledgeSummary.usableEvidenceCount} 条；OCR 待确认{" "}
+              {knowledgeSummary.pendingOcrCount} 处只提醒复核，不直接生成最终数据。
+            </div>
+          </section>
         )}
 
         {marketAnalysis.rows.length > 0 && (
