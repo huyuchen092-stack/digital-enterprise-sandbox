@@ -209,6 +209,7 @@ function sumFees(fees: EarlyStageFee[], predicate: (fee: EarlyStageFee) => boole
 function buildLinePlanOptions(
   lines: ProductionLineRule[],
   initialCapital: number | null,
+  loanCapacity: number | null,
   targetY1Row: MarketAnalysisRow | null,
   targetY1Demand: number | null,
   groupCount: number | null,
@@ -234,7 +235,9 @@ function buildLinePlanOptions(
         const preAdExpense = sumFees(earlyFees, (fee) => fee.quarter === "Q1");
         const preDeliveryFeeTotal = sumFees(earlyFees, () => true);
         const reserveAfterAd = preDeliveryFeeTotal - preAdExpense;
-        const adPointCash = initialCapital !== null ? roundMoney(initialCapital - preAdExpense) : null;
+        const openingCash =
+          initialCapital !== null ? initialCapital + (loanCapacity ?? 0) : null;
+        const adPointCash = openingCash !== null ? roundMoney(openingCash - preAdExpense) : null;
         const unitMargin = targetY1Row?.unitMargin ?? null;
         const grossMargin =
           targetOrderQuantity !== null && unitMargin !== null
@@ -494,6 +497,8 @@ export function buildOperationPlan(
   const productDevelopment = targetY1Row
     ? developments.find((development) => development.product === targetY1Row.product) ?? null
     : null;
+  const loanCapacity =
+    initialCapital !== null && recommendedLoan ? initialCapital * recommendedLoan.limitMultiplier : null;
 
   const missingEvidence: string[] = [];
   if (initialCapital === null) missingEvidence.push(text.initialCapital);
@@ -508,9 +513,11 @@ export function buildOperationPlan(
     recommendedLine && targetY1Demand !== null
       ? Math.max(1, Math.ceil(targetY1Demand / recommendedLine.capacity))
       : null;
+  const fixedOpeningInvestment = (productDevelopment?.cost ?? 0) + (managementFee ?? 0) * 4;
+  const availableOpeningCapital = initialCapital !== null ? initialCapital + (loanCapacity ?? 0) : null;
   const cashLimitedLines =
-    recommendedLine && initialCapital !== null
-      ? Math.max(1, Math.floor((initialCapital * 0.55) / recommendedLine.purchasePrice))
+    recommendedLine && availableOpeningCapital !== null
+      ? Math.max(1, Math.floor((availableOpeningCapital - fixedOpeningInvestment) / recommendedLine.purchasePrice))
       : null;
   const recommendedLineCount =
     demandFitLines !== null && cashLimitedLines !== null
@@ -520,15 +527,14 @@ export function buildOperationPlan(
     recommendedLine && recommendedLineCount !== null ? recommendedLine.capacity * recommendedLineCount : null;
   const plannedInvestment =
     recommendedLine && recommendedLineCount !== null
-      ? recommendedLine.purchasePrice * recommendedLineCount + (productDevelopment?.cost ?? 0) + (managementFee ?? 0) * 4
+      ? recommendedLine.purchasePrice * recommendedLineCount + fixedOpeningInvestment
       : null;
   const cashBuffer =
-    initialCapital !== null && plannedInvestment !== null ? initialCapital - plannedInvestment : null;
-  const loanCapacity =
-    initialCapital !== null && recommendedLoan ? initialCapital * recommendedLoan.limitMultiplier : null;
+    availableOpeningCapital !== null && plannedInvestment !== null ? availableOpeningCapital - plannedInvestment : null;
   const linePlanOptions = buildLinePlanOptions(
     lines,
     initialCapital,
+    loanCapacity,
     targetY1Row,
     targetY1Demand,
     groupCount,
@@ -539,7 +545,7 @@ export function buildOperationPlan(
 
   const openingActions = [
     recommendedLine && recommendedLineCount !== null
-      ? `\u8d2d\u4e70 ${recommendedLineCount} \u6761${recommendedLine.name}\uff0c\u57fa\u7840\u5e74\u4ea7\u80fd\u4f30\u7b97 ${estimatedY1Capacity} \u4ef6`
+      ? `\u8d2d\u4e70 ${recommendedLineCount} \u6761${recommendedLine.name}\uff0c\u542b\u878d\u8d44\u53ef\u7528\u8d44\u91d1\u53e3\u5f84\u4f30\u7b97\u4ea7\u80fd ${estimatedY1Capacity} \u4ef6`
       : "\u7b49\u5f85\u4ea7\u7ebf\u53c2\u6570\u540e\u8ba1\u7b97\u8d2d\u7ebf\u6570\u91cf",
     linePlanOptions.length > 0
       ? `\u57fa\u7840\u4ea7\u7ebf\u5bf9\u6807\uff1a\u5df2\u751f\u6210 ${linePlanOptions.length} \u4e2a\u5019\u9009\u65b9\u6848\uff0c\u6309\u51c0\u5229\u6da6\u548c\u4ea4\u8d27\u524d\u73b0\u91d1\u4e3a\u6b63\u6392\u5e8f`
@@ -559,7 +565,7 @@ export function buildOperationPlan(
 
   const riskChecks = [
     cashBuffer !== null
-      ? `\u5f00\u5c40\u6295\u8d44\u540e\u73b0\u91d1\u7f13\u51b2\u7ea6 ${cashBuffer} \u5143\uff0c\u82e5\u4e3a\u8d1f\u6570\u9700\u51cf\u5c11\u4ea7\u7ebf\u6216\u542f\u7528\u878d\u8d44`
+      ? `\u542b\u878d\u8d44\u5f00\u5c40\u6295\u8d44\u540e\u73b0\u91d1\u7f13\u51b2\u7ea6 ${cashBuffer} \u5143\uff0c\u82e5\u4e3a\u8d1f\u6570\u9700\u51cf\u5c11\u4ea7\u7ebf\u6216\u8c03\u6574\u878d\u8d44`
       : "\u73b0\u91d1\u7f13\u51b2\u5f85\u521d\u59cb\u8d44\u672c\u548c\u6295\u8d44\u989d\u9f50\u5168\u540e\u8ba1\u7b97",
     recommendedLine
       ? `${recommendedLine.name}\u5b89\u88c5\u5468\u671f ${recommendedLine.installCycle} \u5b63\u3001\u751f\u4ea7\u5468\u671f ${recommendedLine.productionCycle} \u5b63\uff0c\u9700\u6838\u5bf9\u80fd\u5426\u8d76\u4e0a Y1 \u4ea4\u4ed8\u671f`
