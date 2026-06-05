@@ -15,6 +15,7 @@ export type LoanRule = {
   name: string;
   limitMultiplier: number;
   duration: number;
+  repaymentMethod: string;
   rate: number;
 };
 
@@ -42,6 +43,11 @@ export type EarlyStageFee = {
   amount: number;
 };
 
+export type QuarterlyCashBalance = {
+  quarter: string;
+  balance: number;
+};
+
 export type LinePlanOption = {
   id: string;
   lineName: string;
@@ -56,6 +62,8 @@ export type LinePlanOption = {
   reasonableAdAmount: number | null;
   grossMargin: number | null;
   netProfit: number | null;
+  minPreDeliveryCash: number | null;
+  cashTimeline: QuarterlyCashBalance[];
   cashPositiveUntilDelivery: boolean;
   notes: string[];
 };
@@ -159,19 +167,18 @@ function chooseLoan(loans: LoanRule[]) {
   );
 }
 
-function candidateLineCounts(line: ProductionLineRule, targetDemand: number | null, maxLineLimit: number | null) {
+function candidateLineCounts(maxLineLimit: number | null) {
   const limit = Math.max(1, Math.min(maxLineLimit ?? 16, 16));
-  const demandFit = targetDemand !== null ? Math.max(1, Math.ceil(targetDemand / line.capacity)) : 1;
-  return Array.from(new Set([Math.max(1, demandFit - 1), demandFit, Math.min(limit, demandFit + 1)]))
-    .filter((count) => count >= 1 && count <= limit)
-    .sort((left, right) => left - right);
+  return Array.from({ length: limit }, (_, index) => index + 1);
 }
 
 function buildEarlyFees(
   line: ProductionLineRule,
   lineCount: number,
   managementFee: number | null,
-  productDevelopment: ProductDevelopmentRule | null
+  productDevelopment: ProductDevelopmentRule | null,
+  loan: LoanRule | null,
+  loanCapacity: number | null
 ) {
   const deliveryQuarter = Math.max(1, Math.min(4, Math.ceil(line.installCycle + line.productionCycle)));
   const fees: EarlyStageFee[] = [
@@ -200,6 +207,25 @@ function buildEarlyFees(
     }
   }
 
+  if (loan && loanCapacity !== null && loanCapacity > 0) {
+    const quarterlyInterest = roundMoney(loanCapacity * (loan.rate / 100));
+    if (loan.repaymentMethod.includes("\u6bcf\u5b63\u4ed8\u606f")) {
+      for (let quarter = 1; quarter <= deliveryQuarter; quarter += 1) {
+        fees.push({
+          quarter: `Q${quarter}`,
+          label: `Q${quarter} \u878d\u8d44\u5229\u606f`,
+          amount: quarterlyInterest
+        });
+      }
+    } else if (loan.duration <= deliveryQuarter) {
+      fees.push({
+        quarter: `Q${loan.duration}`,
+        label: `Q${loan.duration} \u878d\u8d44\u8fd8\u672c\u4ed8\u606f`,
+        amount: roundMoney(loanCapacity + loanCapacity * (loan.rate / 100))
+      });
+    }
+  }
+
   return fees;
 }
 
@@ -207,10 +233,34 @@ function sumFees(fees: EarlyStageFee[], predicate: (fee: EarlyStageFee) => boole
   return fees.filter(predicate).reduce((total, fee) => total + fee.amount, 0);
 }
 
+function buildCashTimeline(openingCash: number | null, fees: EarlyStageFee[], adAmount: number | null) {
+  if (openingCash === null || adAmount === null) {
+    return [];
+  }
+
+  let cash = openingCash;
+  const maxQuarter = fees.reduce((max, fee) => {
+    const quarter = Number.parseInt(fee.quarter.replace("Q", ""), 10);
+    return Number.isFinite(quarter) ? Math.max(max, quarter) : max;
+  }, 1);
+
+  return Array.from({ length: maxQuarter }, (_, index) => {
+    const quarter = `Q${index + 1}`;
+    const quarterFees = sumFees(fees, (fee) => fee.quarter === quarter);
+    cash = roundMoney(cash - quarterFees - (quarter === "Q1" ? adAmount : 0));
+    return { quarter, balance: cash };
+  });
+}
+
+function minTimelineBalance(timeline: QuarterlyCashBalance[]) {
+  return timeline.length > 0 ? Math.min(...timeline.map((item) => item.balance)) : null;
+}
+
 function buildLinePlanOptions(
   lines: ProductionLineRule[],
   initialCapital: number | null,
   loanCapacity: number | null,
+  recommendedLoan: LoanRule | null,
   targetY1Row: MarketAnalysisRow | null,
   targetY1Demand: number | null,
   groupCount: number | null,
@@ -224,7 +274,7 @@ function buildLinePlanOptions(
 
   return lines
     .flatMap((line) =>
-      candidateLineCounts(line, targetY1Demand, maxLineLimit).map<LinePlanOption>((lineCount) => {
+      candidateLineCounts(maxLineLimit).map<LinePlanOption>((lineCount) => {
         const estimatedCapacity = line.capacity * lineCount;
         const targetOrderQuantity =
           targetY1Row !== null ? Math.min(estimatedCapacity, targetY1Row.capacity) : null;
@@ -232,7 +282,14 @@ function buildLinePlanOptions(
           targetY1Demand !== null ? Math.max(1, Math.ceil(estimatedCapacity / targetY1Demand)) : null;
         const targetRank =
           rankByCapacity !== null && groupCount !== null ? Math.min(groupCount, rankByCapacity) : rankByCapacity;
-        const earlyFees = buildEarlyFees(line, lineCount, managementFee, productDevelopment);
+        const earlyFees = buildEarlyFees(
+          line,
+          lineCount,
+          managementFee,
+          productDevelopment,
+          recommendedLoan,
+          loanCapacity
+        );
         const preAdExpense = sumFees(earlyFees, (fee) => fee.quarter === "Q1");
         const preDeliveryFeeTotal = sumFees(earlyFees, () => true);
         const reserveAfterAd = preDeliveryFeeTotal - preAdExpense;
@@ -251,15 +308,21 @@ function buildLinePlanOptions(
         const reasonableAdAmount =
           profitBoundAd !== null && cashBoundAd !== null ? roundMoney(Math.min(profitBoundAd, cashBoundAd)) : null;
         const managementFeeTotal = sumFees(earlyFees, (fee) => fee.label.includes("\u7ba1\u7406\u8d39"));
+        const financingFeeTotal = sumFees(earlyFees, (fee) => fee.label.includes("\u878d\u8d44"));
         const netProfit =
           grossMargin !== null && reasonableAdAmount !== null
-            ? roundMoney(grossMargin - reasonableAdAmount - (productDevelopment?.cost ?? 0) - managementFeeTotal)
+            ? roundMoney(
+                grossMargin -
+                  reasonableAdAmount -
+                  (productDevelopment?.cost ?? 0) -
+                  managementFeeTotal -
+                  financingFeeTotal
+              )
             : null;
+        const cashTimeline = buildCashTimeline(openingCash, earlyFees, reasonableAdAmount);
+        const minPreDeliveryCash = minTimelineBalance(cashTimeline);
         const cashPositiveUntilDelivery =
-          adPointCash !== null &&
-          reasonableAdAmount !== null &&
-          adPointCash > 0 &&
-          adPointCash - reasonableAdAmount - reserveAfterAd > 0;
+          minPreDeliveryCash !== null && cashTimeline.every((quarter) => quarter.balance > 0);
 
         const notes = [
           targetRank !== null
@@ -268,6 +331,9 @@ function buildLinePlanOptions(
           reasonableAdAmount !== null
             ? `\u5408\u7406\u5e7f\u544a\u989d\u6309\u5355\u4f4d\u6bdb\u5229\u548c\u73b0\u91d1\u4f59\u989d\u53cd\u63a8\uff0c\u4e0d\u4ee3\u66ff\u5b9e\u9645\u5bf9\u624b\u5e7f\u544a\u8868`
             : "\u7f3a\u5c11\u6bdb\u5229\u6216\u73b0\u91d1\u8bc1\u636e\uff0c\u4e0d\u7f16\u9020\u5e7f\u544a\u989d",
+          minPreDeliveryCash !== null
+            ? `\u4ea4\u8d27\u524d\u9010\u5b63\u6700\u4f4e\u73b0\u91d1 ${minPreDeliveryCash} \u5143`
+            : "\u4ea4\u8d27\u524d\u73b0\u91d1\u9700\u8d37\u6b3e\u548c\u8d39\u7528\u8bc1\u636e\u9f50\u5168\u540e\u6821\u9a8c",
           buildTransferPolicyCheck(line)
         ];
 
@@ -285,6 +351,8 @@ function buildLinePlanOptions(
           reasonableAdAmount,
           grossMargin,
           netProfit,
+          minPreDeliveryCash,
+          cashTimeline,
           cashPositiveUntilDelivery,
           notes
         };
@@ -471,7 +539,7 @@ export function buildOperationPlan(
       const duration = toNumber(cells[2]);
       const rate = toNumber(cells[4]);
       if (cells[0] && limitMultiplier !== null && duration !== null && rate !== null) {
-        loans.push({ name: cells[0], limitMultiplier, duration, rate });
+        loans.push({ name: cells[0], limitMultiplier, duration, repaymentMethod: cells[3] ?? "", rate });
       }
       continue;
     }
@@ -514,32 +582,11 @@ export function buildOperationPlan(
   if (!targetY1Row) missingEvidence.push(text.y1Order);
   if (groupCount === null) missingEvidence.push(text.groupCount);
 
-  const demandFitLines =
-    recommendedLine && targetY1Demand !== null
-      ? Math.max(1, Math.ceil(targetY1Demand / recommendedLine.capacity))
-      : null;
-  const fixedOpeningInvestment = (productDevelopment?.cost ?? 0) + (managementFee ?? 0) * 4;
-  const availableOpeningCapital = initialCapital !== null ? initialCapital + (loanCapacity ?? 0) : null;
-  const cashLimitedLines =
-    recommendedLine && availableOpeningCapital !== null
-      ? Math.max(1, Math.floor((availableOpeningCapital - fixedOpeningInvestment) / recommendedLine.purchasePrice))
-      : null;
-  const recommendedLineCount =
-    demandFitLines !== null && cashLimitedLines !== null
-      ? Math.min(demandFitLines, cashLimitedLines, maxLineLimit ?? demandFitLines)
-      : null;
-  const estimatedY1Capacity =
-    recommendedLine && recommendedLineCount !== null ? recommendedLine.capacity * recommendedLineCount : null;
-  const plannedInvestment =
-    recommendedLine && recommendedLineCount !== null
-      ? recommendedLine.purchasePrice * recommendedLineCount + fixedOpeningInvestment
-      : null;
-  const cashBuffer =
-    availableOpeningCapital !== null && plannedInvestment !== null ? availableOpeningCapital - plannedInvestment : null;
   const linePlanOptions = buildLinePlanOptions(
     lines,
     initialCapital,
     loanCapacity,
+    recommendedLoan,
     targetY1Row,
     targetY1Demand,
     groupCount,
@@ -547,6 +594,18 @@ export function buildOperationPlan(
     managementFee,
     productDevelopment
   );
+  const recommendedOption =
+    recommendedLine !== null
+      ? linePlanOptions.find(
+          (option) => option.lineName === recommendedLine.name && option.cashPositiveUntilDelivery
+        ) ??
+        linePlanOptions.find((option) => option.lineName === recommendedLine.name) ??
+        null
+      : null;
+  const recommendedLineCount = recommendedOption?.lineCount ?? null;
+  const estimatedY1Capacity = recommendedOption?.estimatedCapacity ?? null;
+  const plannedInvestment = recommendedOption?.preDeliveryFeeTotal ?? null;
+  const cashBuffer = recommendedOption?.minPreDeliveryCash ?? null;
 
   const openingActions = [
     recommendedLine && recommendedLineCount !== null

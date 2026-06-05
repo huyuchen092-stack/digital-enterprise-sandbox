@@ -257,10 +257,40 @@ describe("buildOperationPlan line plan comparison", () => {
 
     expect(plan.loanCapacity).toBe(2340000);
     expect(plan.recommendedLine?.name).toBe("\u667a\u80fd\u7ebf");
-    expect(plan.recommendedLineCount).toBe(10);
-    expect(plan.estimatedY1Capacity).toBe(220);
-    expect(plan.plannedInvestment).toBe(3046000);
-    expect(plan.cashBuffer).toBe(74000);
+    expect(plan.recommendedLineCount).toBe(9);
+    expect(plan.estimatedY1Capacity).toBe(198);
+    expect(plan.plannedInvestment).toBe(2952600);
+    expect(plan.cashBuffer).toBe(64440);
     expect(plan.openingActions.join("\n")).toContain("\u542b\u878d\u8d44");
+
+    const nineSmart = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 9
+    );
+    expect(nineSmart).toMatchObject({
+      cashPositiveUntilDelivery: true,
+      adPointCash: 315800,
+      reasonableAdAmount: 102960,
+      minPreDeliveryCash: 64440
+    });
+    expect(nineSmart?.cashTimeline).toEqual([
+      { quarter: "Q1", balance: 212840 },
+      { quarter: "Q2", balance: 138640 },
+      { quarter: "Q3", balance: 64440 }
+    ]);
+
+    const tenSmart = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 10
+    );
+    expect(tenSmart).toMatchObject({
+      cashPositiveUntilDelivery: false,
+      adPointCash: 15800,
+      reasonableAdAmount: 0,
+      minPreDeliveryCash: -132600
+    });
+    expect(tenSmart?.cashTimeline).toEqual([
+      { quarter: "Q1", balance: 15800 },
+      { quarter: "Q2", balance: -58400 },
+      { quarter: "Q3", balance: -132600 }
+    ]);
   });
 });

@@ -590,7 +590,14 @@ function App() {
                           <td>{formatMarketNumber(option.adPointCash)}</td>
                           <td>{formatMarketNumber(option.reasonableAdAmount)}</td>
                           <td>{formatMarketNumber(option.netProfit)}</td>
-                          <td>{option.cashPositiveUntilDelivery ? "保持为正" : "需减线/融资"}</td>
+                          <td>
+                            <strong>{option.cashPositiveUntilDelivery ? "保持为正" : "需减线/融资"}</strong>
+                            <small>
+                              最低 {formatMarketNumber(option.minPreDeliveryCash)}；{option.cashTimeline
+                                .map((item) => `${item.quarter} ${formatMarketNumber(item.balance)}`)
+                                .join(" / ")}
+                            </small>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
