@@ -487,7 +487,7 @@ function App() {
               <div className="quarter-card">
                 <h4>内置的做方案思维</h4>
                 <ul>
-                  {knowledgeSummary.principles.slice(0, 6).map((principle) => (
+                  {knowledgeSummary.principles.map((principle) => (
                     <li key={principle}>{principle}</li>
                   ))}
                 </ul>

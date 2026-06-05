@@ -849,7 +849,7 @@ describe("App interactions", () => {
 
     expect(await screen.findByText("推演方法论依据")).toBeInTheDocument();
     expect(screen.getByText("内置的做方案思维")).toBeInTheDocument();
-    expect(screen.getByText(/内置方法论 11 条；补充资料 0 条/)).toBeInTheDocument();
+    expect(screen.getByText(/内置方法论 12 条；补充资料 0 条/)).toBeInTheDocument();
     expect(await screen.findByText("四年市场推演")).toBeInTheDocument();
     expect(screen.getAllByText("Y1").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Y2").length).toBeGreaterThan(0);
@@ -987,7 +987,7 @@ describe("App interactions", () => {
 
     render(<App />);
 
-    expect(screen.getByText("内置方法论依据：11 条")).toBeInTheDocument();
+    expect(screen.getByText("内置方法论依据：12 条")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "刷新本地学习资料（可选）" }));
     expect(await screen.findByText(/补充资料 1 条；OCR 待确认 1 处只提醒复核/)).toBeInTheDocument();
@@ -1008,9 +1008,10 @@ describe("App interactions", () => {
 
     expect(await screen.findByText("推演方法论依据")).toBeInTheDocument();
     expect(screen.getByText("内置的做方案思维")).toBeInTheDocument();
-    expect(screen.getByText(/内置方法论 11 条；补充资料 1 条/)).toBeInTheDocument();
+    expect(screen.getByText(/内置方法论 12 条；补充资料 1 条/)).toBeInTheDocument();
     expect(screen.getByText(/产品优先级按单位毛利排序/)).toBeInTheDocument();
     expect(screen.getByText(/自动线转产不按名字一刀切/)).toBeInTheDocument();
+    expect(screen.getByText(/国10类赛题要按市场规模分叉/)).toBeInTheDocument();
     expect(screen.getByText("本次推演执行流程")).toBeInTheDocument();
     expect(screen.getByText(/抓取规则参数/)).toBeInTheDocument();
   });
