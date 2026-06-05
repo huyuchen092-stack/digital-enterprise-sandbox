@@ -576,7 +576,10 @@ function App() {
                             </strong>
                             <small>{option.targetProduct ? `主攻 ${option.targetProduct}` : "主攻待确认"}</small>
                           </td>
-                          <td>{formatMarketNumber(option.estimatedCapacity)}</td>
+                          <td>
+                            <strong>{formatMarketNumber(option.estimatedCapacity)}</strong>
+                            <small>单线 {formatMarketNumber(option.capacityPerLine)}；{option.capacityFormula}</small>
+                          </td>
                           <td>{formatMarketNumber(option.targetOrderQuantity)}</td>
                           <td>{option.targetRank ? `前 ${option.targetRank} 名` : "待确认"}</td>
                           <td>

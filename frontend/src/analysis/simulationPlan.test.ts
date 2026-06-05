@@ -159,7 +159,7 @@ function userScenarioRulesUpload(): DocumentUploadResponse {
     filename: "rules.xlsx",
     document_type: "rules",
     status: "extracted",
-    fragment_count: 10,
+    fragment_count: 16,
     pending_ocr_count: 0,
     fragments: [
       fragment("\u521d\u59cb\u8d44\u672c\uff1a780000"),
@@ -167,6 +167,14 @@ function userScenarioRulesUpload(): DocumentUploadResponse {
         "\u7ebf\u578b\u540d\u79f0 | \u8d2d\u4e70\u4ef7\u683c\uff08\u5143\uff09 | \u5b89\u88c5\u5468\u671f\uff08\u5b63\uff09 | \u751f\u4ea7\u5468\u671f\uff08\u5b63\uff09 | \u4ea7\u91cf | \u8f6c\u4ea7\u5468\u671f\uff08\u5b63\uff09 | \u8f6c\u4ea7\u4ef7\u683c\uff08\u5143\uff09"
       ),
       fragment("\u667a\u80fd\u7ebf | 300000 | 2 | 1 | 22 | 0 | 0"),
+      fragment("\u7ebf\u578b\u540d\u79f0 | \u6b8b\u503c\uff08\u5143\uff09 | \u7ef4\u4fee\u8d39\u7528\uff08\u5143\uff09 | \u666e\u901a\u5de5 | \u9ad8\u7ea7\u5de5 | \u78b3\u6392\u653e\u91cf | \u6298\u65e7\u5e74\u9650"),
+      fragment("\u667a\u80fd\u7ebf | 60000 | 20000 | 2 | 2 | 0 | 4"),
+      fragment("\u540d\u79f0 | \u521d\u59cb\u671f\u671b\u5de5\u8d44\uff08\u5143\uff09 | \u8ba1\u4ef6 | \u6bcf\u5b63\u5ea6\u6570\u91cf | \u6548\u7387\uff08%\uff09"),
+      fragment("\u521d\u7ea7\u5de5 | 2500 | 100 | 50 | 55"),
+      fragment("\u9ad8\u7ea7\u5de5 | 5500 | 200 | 50 | 65"),
+      fragment("\u6fc0\u52b1\u540d\u79f0 | \u63d0\u5347\u6548\u7387\u6bd4\u4f8b\uff08%\uff09"),
+      fragment("\u5956\u91d1\u6fc0\u52b1 | 40%"),
+      fragment("\u6da8\u85aa\u6fc0\u52b1 | 60%"),
       fragment("\u8d37\u6b3e\u540d\u79f0 | \u989d\u5ea6\u4e0a\u9650\uff08\u500d\uff09 | \u8d37\u6b3e\u65f6\u95f4\uff08\u5b63\uff09 | \u8fd8\u6b3e\u65b9\u5f0f | \u5229\u7387\uff08%\uff09"),
       fragment("\u957f\u671f\u94f6\u884c\u878d\u8d44 | 3 | 8 | \u6bcf\u5b63\u4ed8\u606f\uff0c\u5230\u671f\u8fd8\u672c | 3%"),
       fragment("\u8d39\u7528\u540d\u79f0 | \u8d39\u7528"),
@@ -257,25 +265,37 @@ describe("buildOperationPlan line plan comparison", () => {
 
     expect(plan.loanCapacity).toBe(2340000);
     expect(plan.recommendedLine?.name).toBe("\u667a\u80fd\u7ebf");
-    expect(plan.recommendedLineCount).toBe(9);
-    expect(plan.estimatedY1Capacity).toBe(198);
-    expect(plan.plannedInvestment).toBe(2952600);
-    expect(plan.cashBuffer).toBe(64440);
+    expect(plan.recommendedLineCount).toBe(8);
+    expect(plan.estimatedY1Capacity).toBe(448);
+    expect(plan.plannedInvestment).toBe(2652600);
+    expect(plan.cashBuffer).toBe(48072);
     expect(plan.openingActions.join("\n")).toContain("\u542b\u878d\u8d44");
+
+    const fourSmart = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 4
+    );
+    expect(fourSmart).toMatchObject({
+      capacityPerLine: 56,
+      estimatedCapacity: 224
+    });
+    expect(fourSmart?.capacityFormula).toContain("22 × (1 + 2×55%/4 + 2×65%) = 56");
+    expect(fourSmart?.incentiveInsight).toContain("\u521d\u7ea7\u5de5\u6bcf\u63d0\u53471%");
+    expect(fourSmart?.incentiveInsight).toContain("\u9ad8\u7ea7\u5de5\u6bcf\u63d0\u53471%");
 
     const nineSmart = plan.linePlanOptions.find(
       (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 9
     );
     expect(nineSmart).toMatchObject({
-      cashPositiveUntilDelivery: true,
+      cashPositiveUntilDelivery: false,
+      estimatedCapacity: 504,
       adPointCash: 315800,
-      reasonableAdAmount: 102960,
-      minPreDeliveryCash: 64440
+      reasonableAdAmount: 167400,
+      minPreDeliveryCash: 0
     });
     expect(nineSmart?.cashTimeline).toEqual([
-      { quarter: "Q1", balance: 212840 },
-      { quarter: "Q2", balance: 138640 },
-      { quarter: "Q3", balance: 64440 }
+      { quarter: "Q1", balance: 148400 },
+      { quarter: "Q2", balance: 74200 },
+      { quarter: "Q3", balance: 0 }
     ]);
 
     const tenSmart = plan.linePlanOptions.find(

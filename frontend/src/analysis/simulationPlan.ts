@@ -9,6 +9,21 @@ export type ProductionLineRule = {
   capacity: number;
   transferCycle: number | null;
   transferPrice: number | null;
+  juniorWorkerCount?: number;
+  seniorWorkerCount?: number;
+};
+
+export type WorkerRule = {
+  name: string;
+  expectedSalary: number;
+  pieceRate: number;
+  quarterlyQuantity: number;
+  efficiency: number;
+};
+
+export type IncentiveRule = {
+  name: string;
+  efficiencyLift: number;
 };
 
 export type LoanRule = {
@@ -52,6 +67,9 @@ export type LinePlanOption = {
   id: string;
   lineName: string;
   lineCount: number;
+  capacityPerLine: number;
+  capacityFormula: string;
+  incentiveInsight: string | null;
   estimatedCapacity: number;
   targetProduct: string | null;
   targetOrderQuantity: number | null;
@@ -91,6 +109,9 @@ export type OperationPlan = {
 
 type HeaderKind =
   | "line_purchase"
+  | "line_maintenance"
+  | "worker"
+  | "incentive"
   | "loan"
   | "product_development"
   | "fee"
@@ -100,12 +121,17 @@ const text = {
   initialCapital: "\u521d\u59cb\u8d44\u672c",
   lineName: "\u7ebf\u578b\u540d\u79f0",
   purchasePrice: "\u8d2d\u4e70\u4ef7\u683c",
+  residualValue: "\u6b8b\u503c",
+  juniorWorker: "\u666e\u901a\u5de5",
+  seniorWorker: "\u9ad8\u7ea7\u5de5",
   loanName: "\u8d37\u6b3e\u540d\u79f0",
   productName: "\u4ea7\u54c1\u540d\u79f0",
   developmentCost: "\u6d88\u8017\u91d1\u94b1",
   feeName: "\u8d39\u7528\u540d\u79f0",
   ruleName: "\u89c4\u5219\u540d\u79f0",
   workerExpectedSalary: "\u521d\u59cb\u671f\u671b\u5de5\u8d44",
+  workerEfficiency: "\u6548\u7387",
+  incentiveName: "\u6fc0\u52b1\u540d\u79f0",
   smartLine: "\u667a\u80fd\u7ebf",
   smart: "\u667a\u80fd",
   automatic: "\u81ea\u52a8",
@@ -170,6 +196,73 @@ function chooseLoan(loans: LoanRule[]) {
 function candidateLineCounts(maxLineLimit: number | null) {
   const limit = Math.max(1, Math.min(maxLineLimit ?? 16, 16));
   return Array.from({ length: limit }, (_, index) => index + 1);
+}
+
+function normalizeEfficiency(value: number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value > 1 ? value / 100 : value;
+}
+
+function findWorker(workers: WorkerRule[], kind: "junior" | "senior") {
+  const exactNeedle = kind === "junior" ? "\u521d\u7ea7" : "\u9ad8\u7ea7";
+  const fallbackNeedle = kind === "junior" ? "\u666e\u901a" : "\u9ad8\u7ea7";
+  return (
+    workers.find((worker) => worker.name.includes(exactNeedle)) ??
+    workers.find((worker) => worker.name.includes(fallbackNeedle)) ??
+    null
+  );
+}
+
+function calculateCapacityProfile(
+  line: ProductionLineRule,
+  workers: WorkerRule[],
+  incentives: IncentiveRule[],
+  unitMargin: number | null
+) {
+  const juniorWorker = findWorker(workers, "junior");
+  const seniorWorker = findWorker(workers, "senior");
+  const juniorEfficiency = normalizeEfficiency(juniorWorker?.efficiency);
+  const seniorEfficiency = normalizeEfficiency(seniorWorker?.efficiency);
+  const juniorCount = line.juniorWorkerCount ?? 0;
+  const seniorCount = line.seniorWorkerCount ?? 0;
+
+  if (juniorEfficiency === null || seniorEfficiency === null || juniorCount + seniorCount === 0) {
+    return {
+      capacityPerLine: line.capacity,
+      formula: `\u57fa\u7840\u4ea7\u91cf ${line.capacity}\uff1b\u7f3a\u5c11\u5de5\u4eba\u914d\u6bd4\u6216\u6548\u7387\uff0c\u6682\u6309\u57fa\u7840\u4ea7\u91cf`,
+      incentiveInsight: null
+    };
+  }
+
+  const juniorEfficiencySum = juniorCount * juniorEfficiency;
+  const seniorEfficiencySum = seniorCount * seniorEfficiency;
+  const multiplier = 1 + juniorEfficiencySum / 4 + seniorEfficiencySum;
+  const capacityPerLine = Math.floor(line.capacity * multiplier);
+  const juniorCapacityPerOnePercent = line.capacity * juniorCount * 0.01 / 4;
+  const seniorCapacityPerOnePercent = line.capacity * seniorCount * 0.01;
+  const juniorGrossGain =
+    unitMargin !== null ? roundMoney(juniorCapacityPerOnePercent * unitMargin) : null;
+  const seniorGrossGain =
+    unitMargin !== null ? roundMoney(seniorCapacityPerOnePercent * unitMargin) : null;
+
+  const incentiveNames = incentives.length > 0 ? incentives.map((item) => item.name).join("/") : "\u5f85\u786e\u8ba4";
+
+  return {
+    capacityPerLine,
+    formula:
+      `${line.capacity} × (1 + ${juniorCount}×${Math.round(juniorEfficiency * 100)}%/4 + ` +
+      `${seniorCount}×${Math.round(seniorEfficiency * 100)}%) = ${capacityPerLine}`,
+    incentiveInsight:
+      unitMargin !== null
+        ? `\u6fc0\u52b1\u8fb9\u9645\uff1a\u521d\u7ea7\u5de5\u6bcf\u63d0\u53471%\u5355\u7ebf\u589e\u4ea7 ${roundMoney(
+            juniorCapacityPerOnePercent
+          )} \u4ef6\uff0c\u6bdb\u5229\u7ea6 ${juniorGrossGain} \u5143\uff1b\u9ad8\u7ea7\u5de5\u6bcf\u63d0\u53471%\u5355\u7ebf\u589e\u4ea7 ${roundMoney(
+            seniorCapacityPerOnePercent
+          )} \u4ef6\uff0c\u6bdb\u5229\u7ea6 ${seniorGrossGain} \u5143\u3002\u53ef\u7528\u6fc0\u52b1\uff1a${incentiveNames}\u3002\u9ad8\u5229\u6da6\u4ea7\u54c1\u672a\u51fa\u73b0\u65f6\uff0c\u521d\u7ea7\u5de5\u56e0\u4e3a\u8981\u9664\u4ee54\uff0c\u5fc5\u987b\u5148\u7528\u589e\u4ea7\u6bdb\u5229\u8986\u76d6\u6fc0\u52b1\u6210\u672c\u624d\u505a`
+        : null
+  };
 }
 
 function buildEarlyFees(
@@ -258,6 +351,8 @@ function minTimelineBalance(timeline: QuarterlyCashBalance[]) {
 
 function buildLinePlanOptions(
   lines: ProductionLineRule[],
+  workers: WorkerRule[],
+  incentives: IncentiveRule[],
   initialCapital: number | null,
   loanCapacity: number | null,
   recommendedLoan: LoanRule | null,
@@ -275,7 +370,9 @@ function buildLinePlanOptions(
   return lines
     .flatMap((line) =>
       candidateLineCounts(maxLineLimit).map<LinePlanOption>((lineCount) => {
-        const estimatedCapacity = line.capacity * lineCount;
+        const unitMargin = targetY1Row?.unitMargin ?? null;
+        const capacityProfile = calculateCapacityProfile(line, workers, incentives, unitMargin);
+        const estimatedCapacity = capacityProfile.capacityPerLine * lineCount;
         const targetOrderQuantity =
           targetY1Row !== null ? Math.min(estimatedCapacity, targetY1Row.capacity) : null;
         const rankByCapacity =
@@ -296,7 +393,6 @@ function buildLinePlanOptions(
         const openingCash =
           initialCapital !== null ? initialCapital + (loanCapacity ?? 0) : null;
         const adPointCash = openingCash !== null ? roundMoney(openingCash - preAdExpense) : null;
-        const unitMargin = targetY1Row?.unitMargin ?? null;
         const grossMargin =
           targetOrderQuantity !== null && unitMargin !== null
             ? roundMoney(targetOrderQuantity * unitMargin)
@@ -334,6 +430,8 @@ function buildLinePlanOptions(
           minPreDeliveryCash !== null
             ? `\u4ea4\u8d27\u524d\u9010\u5b63\u6700\u4f4e\u73b0\u91d1 ${minPreDeliveryCash} \u5143`
             : "\u4ea4\u8d27\u524d\u73b0\u91d1\u9700\u8d37\u6b3e\u548c\u8d39\u7528\u8bc1\u636e\u9f50\u5168\u540e\u6821\u9a8c",
+          `\u4ea7\u80fd\u516c\u5f0f\uff1a${capacityProfile.formula}`,
+          ...(capacityProfile.incentiveInsight ? [capacityProfile.incentiveInsight] : []),
           buildTransferPolicyCheck(line)
         ];
 
@@ -341,6 +439,9 @@ function buildLinePlanOptions(
           id: `${line.name}-${lineCount}`,
           lineName: line.name,
           lineCount,
+          capacityPerLine: capacityProfile.capacityPerLine,
+          capacityFormula: capacityProfile.formula,
+          incentiveInsight: capacityProfile.incentiveInsight,
           estimatedCapacity,
           targetProduct: targetY1Row?.product ?? null,
           targetOrderQuantity,
@@ -394,6 +495,8 @@ function buildTransferPolicyCheck(line: ProductionLineRule | null) {
 function buildYearlyDecisions(
   marketRows: MarketAnalysisRow[],
   recommendedLine: ProductionLineRule | null,
+  workers: WorkerRule[],
+  incentives: IncentiveRule[],
   startingLineCount: number | null,
   maxLineLimit: number | null,
   developments: ProductDevelopmentRule[]
@@ -403,9 +506,12 @@ function buildYearlyDecisions(
   return ["Y1", "Y2", "Y3", "Y4"].map((year) => {
     const targetMarket = bestRowForYear(marketRows, year);
     const targetDemand = targetMarket?.groupAverageCapacity ?? null;
+    const capacityProfile = recommendedLine
+      ? calculateCapacityProfile(recommendedLine, workers, incentives, targetMarket?.unitMargin ?? null)
+      : null;
     const requiredLines =
       recommendedLine && targetDemand !== null
-        ? Math.max(1, Math.ceil(targetDemand / recommendedLine.capacity))
+        ? Math.max(1, Math.ceil(targetDemand / (capacityProfile?.capacityPerLine ?? recommendedLine.capacity)))
         : null;
     const targetLineCount =
       requiredLines !== null ? Math.min(requiredLines, maxLineLimit ?? requiredLines) : null;
@@ -417,7 +523,9 @@ function buildYearlyDecisions(
     }
 
     const targetCapacity =
-      recommendedLine && targetLineCount !== null ? recommendedLine.capacity * targetLineCount : null;
+      recommendedLine && targetLineCount !== null
+        ? (capacityProfile?.capacityPerLine ?? recommendedLine.capacity) * targetLineCount
+        : null;
     const capacityGap =
       targetDemand !== null && targetCapacity !== null ? targetCapacity - targetDemand : null;
     const development = targetMarket
@@ -474,6 +582,8 @@ export function buildOperationPlan(
   let managementFee: number | null = null;
   const lines: ProductionLineRule[] = [];
   const loans: LoanRule[] = [];
+  const workers: WorkerRule[] = [];
+  const incentives: IncentiveRule[] = [];
   const developments: ProductDevelopmentRule[] = [];
   let header: HeaderKind | null = null;
 
@@ -492,8 +602,16 @@ export function buildOperationPlan(
       header = "line_purchase";
       continue;
     }
+    if (hasCell(cells, text.lineName) && hasCell(cells, text.residualValue)) {
+      header = "line_maintenance";
+      continue;
+    }
     if (hasCell(cells, text.workerExpectedSalary)) {
-      header = null;
+      header = "worker";
+      continue;
+    }
+    if (hasCell(cells, text.incentiveName)) {
+      header = "incentive";
       continue;
     }
     if (hasCell(cells, text.loanName)) {
@@ -530,6 +648,42 @@ export function buildOperationPlan(
           transferCycle,
           transferPrice
         });
+      }
+      continue;
+    }
+
+    if (header === "line_maintenance") {
+      const juniorWorkerCount = toNumber(cells[3]);
+      const seniorWorkerCount = toNumber(cells[4]);
+      const line = lines.find((item) => item.name === cells[0]);
+      if (line && juniorWorkerCount !== null && seniorWorkerCount !== null) {
+        line.juniorWorkerCount = juniorWorkerCount;
+        line.seniorWorkerCount = seniorWorkerCount;
+      }
+      continue;
+    }
+
+    if (header === "worker") {
+      const expectedSalary = toNumber(cells[1]);
+      const pieceRate = toNumber(cells[2]);
+      const quarterlyQuantity = toNumber(cells[3]);
+      const efficiency = toNumber(cells[4]);
+      if (
+        cells[0] &&
+        expectedSalary !== null &&
+        pieceRate !== null &&
+        quarterlyQuantity !== null &&
+        efficiency !== null
+      ) {
+        workers.push({ name: cells[0], expectedSalary, pieceRate, quarterlyQuantity, efficiency });
+      }
+      continue;
+    }
+
+    if (header === "incentive") {
+      const efficiencyLift = toNumber(cells[1]);
+      if (cells[0] && efficiencyLift !== null) {
+        incentives.push({ name: cells[0], efficiencyLift });
       }
       continue;
     }
@@ -584,6 +738,8 @@ export function buildOperationPlan(
 
   const linePlanOptions = buildLinePlanOptions(
     lines,
+    workers,
+    incentives,
     initialCapital,
     loanCapacity,
     recommendedLoan,
@@ -642,6 +798,8 @@ export function buildOperationPlan(
   const yearlyDecisions = buildYearlyDecisions(
     marketRows,
     recommendedLine,
+    workers,
+    incentives,
     recommendedLineCount,
     maxLineLimit,
     developments
