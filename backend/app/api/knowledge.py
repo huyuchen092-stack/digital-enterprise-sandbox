@@ -12,6 +12,8 @@ VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi"}
 METHODOLOGY_FILE = "\u65b9\u6848\u63a8\u6f14AI.md"
 LOGIC_DIR = "\u903b\u8f91"
 KNOWLEDGE_FILENAME = "\u684c\u9762\u903b\u8f91\u77e5\u8bc6\u5e93"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+LEARNING_REPORT = PROJECT_ROOT / "docs" / "knowledge" / "sandbox-logic-learning-report.md"
 
 
 def _desktop() -> Path:
@@ -31,12 +33,34 @@ def _extract_markdown(path: Path) -> ExtractedFragment | None:
     )
 
 
+def _extract_learning_report(path: Path) -> ExtractedFragment | None:
+    text = path.read_text(encoding="utf-8", errors="ignore").strip()
+    if not text:
+        return None
+    try:
+        source_file = str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        source_file = str(path)
+    return ExtractedFragment(
+        text=text,
+        source_file=source_file,
+        source_location="learned:sandbox-logic-report",
+        confidence=1.0,
+        kind="methodology",
+    )
+
+
 @router.post("/import-local", response_model=DocumentUploadResponse)
 def import_local_knowledge() -> DocumentUploadResponse:
     desktop = _desktop()
     candidates = [desktop / METHODOLOGY_FILE, desktop / LOGIC_DIR]
     fragments: list[ExtractedFragment] = []
     extractor = ExtractionService()
+
+    if LEARNING_REPORT.exists():
+        fragment = _extract_learning_report(LEARNING_REPORT)
+        if fragment:
+            fragments.append(fragment)
 
     for candidate in candidates:
         if candidate.is_file() and candidate.suffix.lower() == ".md":

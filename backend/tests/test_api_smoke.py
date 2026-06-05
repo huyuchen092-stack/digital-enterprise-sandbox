@@ -117,3 +117,29 @@ def test_document_upload_endpoint_returns_all_extracted_fragments(monkeypatch, t
     assert data["fragment_count"] == 25
     assert len(data["fragments"]) == 25
     assert data["fragments"][-1]["text"] == "row 24"
+
+
+def test_import_local_knowledge_includes_learned_strategy_report(monkeypatch, tmp_path):
+    from app.api import knowledge
+
+    report = tmp_path / "sandbox-logic-learning-report.md"
+    report.write_text(
+        "# 沙盘逻辑资料学习记录\n\n## 算法化推演模型 v2\n\n先算组均容量，再算材料口径毛利。",
+        encoding="utf-8",
+    )
+    empty_desktop = tmp_path / "Desktop"
+    empty_desktop.mkdir()
+
+    monkeypatch.setattr(knowledge, "LEARNING_REPORT", report)
+    monkeypatch.setattr(knowledge, "_desktop", lambda: empty_desktop)
+
+    with TestClient(app) as client:
+        response = client.post("/api/knowledge/import-local")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fragment_count"] == 1
+    assert data["pending_ocr_count"] == 0
+    assert data["fragments"][0]["kind"] == "methodology"
+    assert data["fragments"][0]["source_location"] == "learned:sandbox-logic-report"
+    assert "算法化推演模型 v2" in data["fragments"][0]["text"]

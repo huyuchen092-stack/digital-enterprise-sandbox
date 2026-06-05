@@ -18,6 +18,7 @@ backend/.pytest_cache/
 .local/
 backend/uploads/
 backend/sandbox.db
+sandbox.db
 *.sqlite
 *.sqlite3
 

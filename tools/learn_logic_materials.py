@@ -16,38 +16,61 @@ OUT_DIR = ROOT / "docs" / "knowledge"
 FRAME_DIR = ROOT / ".local" / "video-frames"
 
 
-TEXT_FILES = [
-    Path.home() / "Desktop" / "\u65b9\u6848\u63a8\u6f14AI.md",
-    LOGIC_DIR / "\u56db\u79cd\u5e02\u573a\u5206\u6790.docx",
-    LOGIC_DIR / "\u5927\u6d77" / "\u5927\u6d77\u79d1\u6280\u6709\u9650\u516c\u53f8 (1).docx",
-    LOGIC_DIR / "\u57fa\u7840\u8bfe\u7a0b" / "\u57fa\u7840\u8bfe\u7a0b" / "\u5c0f\u7f8a\u5355\u8f66\u6807\u51c6\u6559\u5b66\u6280\u672f\u624b\u518c20240312.docx",
-    LOGIC_DIR / "\u6570\u667a\u5316\u6c99\u76d8" / "\u6570\u667a\u5316\u6c99\u76d8" / "\u6280\u672f\u624b\u518c - \u526f\u672c.pdf",
-    LOGIC_DIR / "\u798f\u5efa\u89c4\u5219" / "2026\u5e74\u7701\u8d5b\u89c4\u5219.pdf",
-]
-
-VIDEO_FILES = [
-    LOGIC_DIR / "\u798f\u5efa\u89c4\u5219" / "e25b2fc07cc6fab0fc90fd9e4c3d6cdf.mp4",
-    LOGIC_DIR / "\u62c6\u7ebf" / "bc88b6860324230a7896b842ba5bcd08.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u751f\u4ea7\u7ebf.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u751f\u4ea7\u7ebf1.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u751f\u4ea7\u7ebf2.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u8d37\u6b3e\u89c4\u5219.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u8d34\u73b0.mp4",
-    LOGIC_DIR / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u89c4\u5219\u8bb2\u89e3 ISO\uff0c\u5e02\u573a\uff0c\u4ea7\u54c1" / "\u539f\u6750\u6599.mp4",
-    LOGIC_DIR / "\u5e7f\u544a\u7ec4\u6210" / "\u5e7f\u544a\u7ec4\u6210" / "\u5e7f\u544a\u7ec4\u6210.mp4",
-    LOGIC_DIR / "\u57fa\u7840\u8bfe\u7a0b" / "\u57fa\u7840\u8bfe\u7a0b" / "\u8868\u683c" / "\u8868\u683c\u5236\u4f5c.mp4",
-    LOGIC_DIR / "\u6570\u667a\u5316\u6c99\u76d8" / "\u6570\u667a\u5316\u6c99\u76d8" / "\u8868\u683c\u8fd0\u7528.mp4",
-]
+TEXT_EXTENSIONS = {".md", ".docx", ".pdf", ".pptx", ".xlsx", ".xls", ".png", ".jpg", ".jpeg", ".bmp", ".webp"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv"}
 
 
 def safe_text(value: str, limit: int = 1200) -> str:
     return value.replace("\x00", "").strip()[:limit]
 
 
+def discover_files(extensions: set[str]) -> list[Path]:
+    files: list[Path] = []
+    if ".md" in extensions:
+        files.append(Path.home() / "Desktop" / "\u65b9\u6848\u63a8\u6f14AI.md")
+    files.extend(path for path in LOGIC_DIR.rglob("*") if path.is_file() and path.suffix.lower() in extensions)
+    seen: set[str] = set()
+    unique: list[Path] = []
+    for path in files:
+        key = str(path).lower()
+        if key not in seen:
+            unique.append(path)
+            seen.add(key)
+    return sorted(unique, key=lambda item: str(item))
+
+
+def topic_for_path(path: Path) -> str:
+    text = str(path)
+    mapping = [
+        ("\u62c6\u7ebf", "\u62c6\u7ebf/\u6362\u7ebf"),
+        ("\u751f\u4ea7\u7ebf", "\u4ea7\u7ebf\u89c4\u5219"),
+        ("\u8d37\u6b3e", "\u878d\u8d44"),
+        ("\u8d34\u73b0", "\u8d34\u73b0/\u5e94\u6536"),
+        ("\u539f\u6750\u6599", "\u539f\u6599/BOM"),
+        ("\u6750\u6599", "\u539f\u6599/BOM"),
+        ("\u5e7f\u544a", "\u5e7f\u544a/\u9009\u5355"),
+        ("\u5e02\u573a", "\u5e02\u573a\u5206\u6790"),
+        ("\u4ea7\u54c1", "\u4ea7\u54c1/\u7814\u53d1"),
+        ("\u73ed\u6b21", "\u73ed\u6b21/\u6fc0\u52b1"),
+        ("\u6fc0\u52b1", "\u73ed\u6b21/\u6fc0\u52b1"),
+        ("\u5de5\u4eba", "\u4eba\u529b/\u5de5\u8d44"),
+        ("\u4eba\u529b", "\u4eba\u529b/\u5de5\u8d44"),
+        ("\u8868\u683c", "\u9884\u7b97\u8868"),
+        ("\u8d22\u52a1", "\u8d22\u52a1/\u62a5\u8868"),
+        ("\u798f\u5efa", "\u798f\u5efa\u89c4\u5219"),
+        ("\u5927\u6d77", "\u5927\u6d77\u6848\u4f8b"),
+        ("\u5409\u6797", "\u5409\u6797\u6848\u4f8b"),
+    ]
+    for needle, topic in mapping:
+        if needle in text:
+            return topic
+    return "\u7efc\u5408"
+
+
 def extract_text_materials() -> list[dict[str, object]]:
     extractor = ExtractionService()
     records: list[dict[str, object]] = []
-    for path in TEXT_FILES:
+    for path in discover_files(TEXT_EXTENSIONS):
         if not path.exists():
             records.append({"file": str(path), "status": "missing"})
             continue
@@ -56,6 +79,7 @@ def extract_text_materials() -> list[dict[str, object]]:
             records.append(
                 {
                     "file": str(path),
+                    "topic": topic_for_path(path),
                     "status": "read",
                     "fragment_count": 1,
                     "sample": safe_text(content, 3000),
@@ -67,6 +91,7 @@ def extract_text_materials() -> list[dict[str, object]]:
         records.append(
             {
                 "file": str(path),
+                "topic": topic_for_path(path),
                 "status": "read",
                 "fragment_count": len(text_fragments),
                 "pending_ocr_count": sum(1 for fragment in fragments if fragment.kind == "ocr_pending"),
@@ -103,7 +128,7 @@ def video_duration(path: Path) -> float | None:
 def extract_keyframes() -> list[dict[str, object]]:
     FRAME_DIR.mkdir(parents=True, exist_ok=True)
     records: list[dict[str, object]] = []
-    for index, path in enumerate(VIDEO_FILES, start=1):
+    for index, path in enumerate(discover_files(VIDEO_EXTENSIONS), start=1):
         if not path.exists():
             records.append({"file": str(path), "status": "missing"})
             continue
@@ -143,6 +168,7 @@ def extract_keyframes() -> list[dict[str, object]]:
         records.append(
             {
                 "file": str(path),
+                "topic": topic_for_path(path),
                 "status": "keyframes_extracted",
                 "duration_seconds": duration,
                 "frames": frames,
@@ -162,13 +188,13 @@ def write_report(text_records: list[dict[str, object]], video_records: list[dict
                 "",
                 "## 已学习文本资料",
                 *[
-                    f"- {Path(str(item['file'])).name}: {item.get('status')}，片段 {item.get('fragment_count', 0)}，OCR待确认 {item.get('pending_ocr_count', 0)}"
+                    f"- [{item.get('topic')}] {Path(str(item['file'])).name}: {item.get('status')}，片段 {item.get('fragment_count', 0)}，OCR待确认 {item.get('pending_ocr_count', 0)}"
                     for item in text_records
                 ],
                 "",
                 "## 已抽帧视频资料",
                 *[
-                    f"- {Path(str(item['file'])).name}: {item.get('status')}，时长 {round(item['duration_seconds'] or 0, 1)} 秒，关键帧 {len(item.get('frames', []))} 张"
+                    f"- [{item.get('topic')}] {Path(str(item['file'])).name}: {item.get('status')}，时长 {round(item['duration_seconds'] or 0, 1)} 秒，关键帧 {len(item.get('frames', []))} 张"
                     for item in video_records
                 ],
                 "",
@@ -183,9 +209,31 @@ def write_report(text_records: list[dict[str, object]], video_records: list[dict
                 "7. 广告不是固定值：先判断产能、订单毛利、竞争强度和现金流，Y1够卖即可，Y3/Y4高毛利阶段加压。",
                 "8. 每个季度必须现金校验：季末现金要覆盖下季工资、维护、管理、到期本息、原料和税。",
                 "",
+                "## 算法化推演模型 v2",
+                "",
+                "1. 变量层：先确认初始现金/权益、贷款倍数与利率、管理费、产线价格/周期/产量/转产周期、产品研发周期、原料 BOM 与送货期、市场开拓/ISO/特性规则、参赛组数。缺失或 OCR 模糊时只列待确认，不进入最终计算。",
+                "2. 市场层：按年、季度、市场、产品、特性汇总订单；总容量除以参赛组数得到组均容量；产品利润只按售价减材料费用作为第一口径毛利；识别 Y2/Y3/Y4 的需求和毛利爆发点。",
+                "3. 产能层：用组均容量反推线数，再受产线安装期、生产期、上限、工人效率、班次、原料到货和现金约束校验。自动线是否转产只看规则表是否有转产周期和转产成本，不按名字一刀切。",
+                "4. 现金流层：每季列期初现金、贷款、贴现、回款、产线、研发、市场/ISO、原料、工资、管理费、维护、利息、本金、税、期末现金。现金为负或不能覆盖下季刚性支出时，方案必须减线、调融资或降低广告。",
+                "5. 决策层：Y1 目标是跑通现金流并放大权益；Y2 补齐高毛利产品/市场/产能；Y3-Y4 围绕高毛利订单、可交付产能和广告效率扩大权益。所有推荐都要带证据来源和待复核项。",
+                "6. 边界层：视频关键帧只能确认表格结构、操作流程和待复核线索；没有语音转写或清晰表格 OCR 的具体数值，不作为规则证据。",
+                "",
                 "## 视频学习边界",
                 "",
                 "本次已完成关键帧抽取，可学习画面中的表格结构、流程节点和操作界面。尚未完成语音转写，因此视频口播内容不能作为最终规则证据，只能作为待复核线索。",
+                "",
+                "## 视频关键帧已确认内容",
+                "",
+                "关键帧联系表：`docs/knowledge/video-keyframes-contact-sheet.jpg`",
+                "",
+                "1. 福建规则视频展示的是带颜色区块的经营预算/经营过程表，重点是把年度、季度、现金、贷款、应收、综合费用、资产负债等放在一张表里联动检查。",
+                "2. 拆线视频展示的是表格化拆线推演：把不同产线/时点放在横向季度轴上，计算拆线或替换的成本收益。可确认“拆线必须表格算净盈亏”，不能口头判断。",
+                "3. 生产线系列视频展示了生产线规则页和 Excel 产能表：产线价格、安装周期、生产周期、产量、转产周期、转产费用、残值、维护、折旧、工人配置都必须入表。",
+                "4. 贷款规则视频展示贷款规则页和季度表：贷款时间、额度倍数、利率、还款方式要进入现金流，不能只看能贷多少。",
+                "5. 贴现视频展示应收/贴现和季度现金表：贴现是现金流工具，应用于缺钱季节，不是固定操作。",
+                "6. 原材料视频展示原料表和产品 BOM：原料价格、送货周期、账期、紧急采购倍数决定能不能按时生产，尤其 2 季到货原料要提前下单。",
+                "7. 广告组成视频展示广告/市场/订单相关表格：广告要和订单容量、产品毛利、竞争强度、可交付产能一起判断，Y1不是无脑高广告。",
+                "8. 表格制作和表格运用视频展示预算表结构：方案应输出季度级表格，至少包含现金、短贷/利息、贴现、研发、市场/ISO、产线建设、原料、工资、广告、收入、税和期末现金校验。",
             ]
         ),
         encoding="utf-8",
