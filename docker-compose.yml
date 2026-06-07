@@ -1,0 +1,15 @@
+services:
+  sandbox-ai:
+    build: .
+    image: digital-enterprise-sandbox:latest
+    container_name: digital-enterprise-sandbox
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production
+    volumes:
+      - sandbox_data:/data
+
+volumes:
+  sandbox_data:

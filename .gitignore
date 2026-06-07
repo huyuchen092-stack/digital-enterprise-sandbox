@@ -27,6 +27,7 @@ sandbox.db
 .env.*
 !.env.example
 !backend/.env.example
+!.env.production.example
 
 # Editor and OS noise
 .DS_Store
