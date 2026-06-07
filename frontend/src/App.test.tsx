@@ -28,6 +28,16 @@ describe("App interactions", () => {
     expect(screen.getByText(/当前还不能输出第一年或后四年运营方案/)).toBeInTheDocument();
   });
 
+  test("does not treat the example budget workbook as a default rule source", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "方案推演" }));
+
+    expect(screen.queryByText(/1234568\.xlsx/)).not.toBeInTheDocument();
+    expect(screen.queryByText("读取 Excel 推演")).not.toBeInTheDocument();
+  });
+
   test("confirms detected parameter candidates from the table", async () => {
     const user = userEvent.setup();
     vi.mocked(uploadDocument).mockResolvedValueOnce({
@@ -857,8 +867,8 @@ describe("App interactions", () => {
     expect(screen.getAllByText("2600").length).toBeGreaterThan(0);
     expect(screen.getByText("5400")).toBeInTheDocument();
     expect(screen.getByText("产线方案对标")).toBeInTheDocument();
-    expect(screen.getByText("广告时点现金")).toBeInTheDocument();
-    expect(screen.getByText("合理广告额")).toBeInTheDocument();
+    expect(screen.getByText("广告现金")).toBeInTheDocument();
+    expect(screen.getByText("广告预算")).toBeInTheDocument();
     expect(screen.getByText("净利润")).toBeInTheDocument();
     expect(screen.getAllByText(/前 \d+ 名/).length).toBeGreaterThan(0);
     expect(screen.getByText("第一年开局方案")).toBeInTheDocument();
@@ -869,11 +879,10 @@ describe("App interactions", () => {
     expect(
       screen.getByText((_, element) => element?.textContent === "融资额度：2340000 元")
     ).toBeInTheDocument();
-    expect(screen.getByText("Y1-Y4 运营决策")).toBeInTheDocument();
-    expect(screen.getAllByText("Y4").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/目标累计 16 条智能线/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/本年需新增 4 条/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/现金流明细表/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Y1-Y4 运营决策")).not.toBeInTheDocument();
+    expect(screen.queryByText(/目标累计 16 条智能线/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/本年需新增 4 条/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/现金流明细表/)).not.toBeInTheDocument();
     expect(screen.queryByText(/仍需产线参数/)).not.toBeInTheDocument();
   });
 

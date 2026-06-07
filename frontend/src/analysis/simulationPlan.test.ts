@@ -176,6 +176,7 @@ function userScenarioRulesUpload(): DocumentUploadResponse {
       fragment("\u5956\u91d1\u6fc0\u52b1 | 40%"),
       fragment("\u6da8\u85aa\u6fc0\u52b1 | 60%"),
       fragment("\u8d37\u6b3e\u540d\u79f0 | \u989d\u5ea6\u4e0a\u9650\uff08\u500d\uff09 | \u8d37\u6b3e\u65f6\u95f4\uff08\u5b63\uff09 | \u8fd8\u6b3e\u65b9\u5f0f | \u5229\u7387\uff08%\uff09"),
+      fragment("\u77ed\u671f\u94f6\u884c\u878d\u8d44 | 3 | 4 | \u672c\u606f\u540c\u8fd8 | 10%"),
       fragment("\u957f\u671f\u94f6\u884c\u878d\u8d44 | 3 | 8 | \u6bcf\u5b63\u4ed8\u606f\uff0c\u5230\u671f\u8fd8\u672c | 3%"),
       fragment("\u8d39\u7528\u540d\u79f0 | \u8d39\u7528"),
       fragment("\u7ba1\u7406\u8d39\u7528 | 4000"),
@@ -183,6 +184,44 @@ function userScenarioRulesUpload(): DocumentUploadResponse {
       fragment("\u751f\u4ea7\u7ebf\u4e0a\u9650 | 16"),
       fragment("\u4ea7\u54c1\u540d\u79f0 | \u6d88\u8017\u91d1\u94b1 | \u7814\u53d1\u5468\u671f"),
       fragment("P2 | 30000 | 2")
+    ]
+  };
+}
+
+function autoFirstScenarioRulesUpload(): DocumentUploadResponse {
+  return {
+    id: 1,
+    filename: "rules.xlsx",
+    document_type: "rules",
+    status: "extracted",
+    fragment_count: 20,
+    pending_ocr_count: 0,
+    fragments: [
+      fragment("\u521d\u59cb\u8d44\u672c\uff1a780000"),
+      fragment(
+        "\u7ebf\u578b\u540d\u79f0 | \u8d2d\u4e70\u4ef7\u683c\uff08\u5143\uff09 | \u5b89\u88c5\u5468\u671f\uff08\u5b63\uff09 | \u751f\u4ea7\u5468\u671f\uff08\u5b63\uff09 | \u4ea7\u91cf | \u8f6c\u4ea7\u5468\u671f\uff08\u5b63\uff09 | \u8f6c\u4ea7\u4ef7\u683c\uff08\u5143\uff09"
+      ),
+      fragment("\u81ea\u52a8\u7ebf | 150000 | 1 | 1 | 17 | 0 | 0"),
+      fragment("\u667a\u80fd\u7ebf | 300000 | 2 | 1 | 22 | 0 | 0"),
+      fragment("\u4f20\u7edf\u7ebf | 70000 | 1 | 1 | 26 | 0 | 0"),
+      fragment("\u7ebf\u578b\u540d\u79f0 | \u6b8b\u503c\uff08\u5143\uff09 | \u7ef4\u4fee\u8d39\u7528\uff08\u5143\uff09 | \u666e\u901a\u5de5 | \u9ad8\u7ea7\u5de5 | \u78b3\u6392\u653e\u91cf | \u6298\u65e7\u5e74\u9650"),
+      fragment("\u81ea\u52a8\u7ebf | 30000 | 10000 | 1 | 1 | 0 | 4"),
+      fragment("\u667a\u80fd\u7ebf | 60000 | 20000 | 2 | 2 | 0 | 4"),
+      fragment("\u4f20\u7edf\u7ebf | 10000 | 5000 | 1 | 2 | 0 | 4"),
+      fragment("\u540d\u79f0 | \u521d\u59cb\u671f\u671b\u5de5\u8d44\uff08\u5143\uff09 | \u8ba1\u4ef6 | \u6bcf\u5b63\u5ea6\u6570\u91cf | \u6548\u7387\uff08%\uff09"),
+      fragment("\u521d\u7ea7\u5de5 | 2500 | 100 | 50 | 55"),
+      fragment("\u9ad8\u7ea7\u5de5 | 5500 | 200 | 50 | 65"),
+      fragment("\u6fc0\u52b1\u540d\u79f0 | \u63d0\u5347\u6548\u7387\u6bd4\u4f8b\uff08%\uff09"),
+      fragment("\u5956\u91d1\u6fc0\u52b1 | 40%"),
+      fragment("\u8d37\u6b3e\u540d\u79f0 | \u989d\u5ea6\u4e0a\u9650\uff08\u500d\uff09 | \u8d37\u6b3e\u65f6\u95f4\uff08\u5b63\uff09 | \u8fd8\u6b3e\u65b9\u5f0f | \u5229\u7387\uff08%\uff09"),
+      fragment("\u957f\u671f\u94f6\u884c\u878d\u8d44 | 3 | 8 | \u6bcf\u5b63\u4ed8\u606f\uff0c\u5230\u671f\u8fd8\u672c | 3%"),
+      fragment("\u8d39\u7528\u540d\u79f0 | \u8d39\u7528"),
+      fragment("\u7ba1\u7406\u8d39\u7528 | 4000"),
+      fragment("\u89c4\u5219\u540d\u79f0 | \u89c4\u5219\u503c"),
+      fragment("\u751f\u4ea7\u7ebf\u4e0a\u9650 | 16"),
+      fragment("\u4ea7\u54c1\u540d\u79f0 | \u6d88\u8017\u91d1\u94b1 | \u7814\u53d1\u5468\u671f"),
+      fragment("P2 | 30000 | 2"),
+      fragment("P4 | 60000 | 2")
     ]
   };
 }
@@ -224,14 +263,24 @@ describe("buildOperationPlan line plan comparison", () => {
       targetRank: 1,
       targetOrderQuantity: 20,
       estimatedCapacity: 20,
-      adPointCash: 2878000,
-      reasonableAdAmount: 44000,
-      netProfit: 342000,
+      adPointCash: 2506000,
+      reasonableAdAmount: 48000,
+      netProfit: 253500,
       cashPositiveUntilDelivery: true
+    });
+    expect(automaticBase?.profitFormula).toContain("\u5229\u6da6\u8868\u53e3\u5f84");
+    expect(automaticBase?.profitBreakdown).toMatchObject({
+      revenue: 800000,
+      materialCost: 360000,
+      productionFee: 0,
+      advertisingFee: 48000,
+      comprehensiveFee: 102000,
+      netProfit: 253500
     });
     expect(automaticBase?.earlyFees.map((fee) => fee.label)).toEqual([
       "\u8d2d\u4e70\u4ea7\u7ebf",
       "\u4ea7\u54c1\u7814\u53d1",
+      "\u6750\u6599\u91c7\u8d2d",
       "Q1 \u7ba1\u7406\u8d39",
       "Q2 \u7ba1\u7406\u8d39"
     ]);
@@ -242,8 +291,8 @@ describe("buildOperationPlan line plan comparison", () => {
     expect(automaticAggressive).toMatchObject({
       targetRank: 2,
       targetOrderQuantity: 40,
-      reasonableAdAmount: 123200,
-      netProfit: 702800
+      reasonableAdAmount: 90000,
+      netProfit: 552000
     });
 
     expect(plan.linePlanOptions[0]?.netProfit).toBeGreaterThanOrEqual(plan.linePlanOptions[1]?.netProfit ?? 0);
@@ -262,40 +311,55 @@ describe("buildOperationPlan line plan comparison", () => {
 
   test("uses loan capacity when recommending opening line count", () => {
     const plan = buildOperationPlan(userScenarioRulesUpload(), largeDemandMarketRows, 20);
-
     expect(plan.loanCapacity).toBe(2340000);
+    expect(plan.recommendedLoan?.name).toBe("\u77ed\u671f\u94f6\u884c\u878d\u8d44");
     expect(plan.recommendedLine?.name).toBe("\u667a\u80fd\u7ebf");
-    expect(plan.recommendedLineCount).toBe(8);
-    expect(plan.estimatedY1Capacity).toBe(448);
-    expect(plan.plannedInvestment).toBe(2652600);
-    expect(plan.cashBuffer).toBe(48072);
+    expect(plan.recommendedLineCount).toBe(4);
+    expect(plan.estimatedY1Capacity).toBe(288);
+    expect(plan.plannedInvestment).toBe(2233600);
+    expect(plan.cashBuffer).toBe(360742.4);
     expect(plan.openingActions.join("\n")).toContain("\u542b\u878d\u8d44");
+    expect(plan.openingActions.join("\n")).toContain("\u878d\u8d44\u4f18\u5148\u4f7f\u7528\u77ed\u671f\u94f6\u884c\u878d\u8d44");
 
-    const fourSmart = plan.linePlanOptions.find(
-      (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 4
+    const fiveSmart = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 5
     );
-    expect(fourSmart).toMatchObject({
-      capacityPerLine: 56,
-      estimatedCapacity: 224
+    expect(fiveSmart).toMatchObject({
+      capacityPerLine: 72,
+      estimatedCapacity: 360,
+      cashPositiveUntilDelivery: false,
+      reasonableAdAmount: 338500,
+      minPreDeliveryCash: 0
     });
-    expect(fourSmart?.capacityFormula).toContain("22 × (1 + 2×55%/4 + 2×65%) = 56");
-    expect(fourSmart?.incentiveInsight).toContain("\u521d\u7ea7\u5de5\u6bcf\u63d0\u53471%");
-    expect(fourSmart?.incentiveInsight).toContain("\u9ad8\u7ea7\u5de5\u6bcf\u63d0\u53471%");
+    expect(fiveSmart?.capacityFormula).toContain("\u9ad8\u7ea7\u5de5\u6fc0\u52b1\u5230100%");
+    expect(fiveSmart?.earlyFees.map((fee) => fee.label)).toEqual([
+      "\u8d2d\u4e70\u4ea7\u7ebf",
+      "\u4ea7\u54c1\u7814\u53d1",
+      "\u9ad8\u7ea7\u5de5\u6fc0\u52b1\u5230100%",
+      "\u6750\u6599\u91c7\u8d2d",
+      "\u751f\u4ea7\u8d39",
+      "Q1 \u7ba1\u7406\u8d39",
+      "Q2 \u7ba1\u7406\u8d39",
+      "Q3 \u7ba1\u7406\u8d39"
+    ]);
+    expect(fiveSmart?.notes.join("\n")).toContain("\u4e0b\u4e00\u5e74\u7f34\u7eb3");
+    expect(fiveSmart?.incentiveInsight).toContain("\u521d\u7ea7\u5de5\u6bcf\u63d0\u53471%");
+    expect(fiveSmart?.incentiveInsight).toContain("\u9ad8\u7ea7\u5de5\u6bcf\u63d0\u53471%");
 
     const nineSmart = plan.linePlanOptions.find(
       (option) => option.lineName === "\u667a\u80fd\u7ebf" && option.lineCount === 9
     );
     expect(nineSmart).toMatchObject({
       cashPositiveUntilDelivery: false,
-      estimatedCapacity: 504,
-      adPointCash: 315800,
-      reasonableAdAmount: 167400,
-      minPreDeliveryCash: 0
+      estimatedCapacity: 648,
+      adPointCash: 0,
+      reasonableAdAmount: 0,
+      minPreDeliveryCash: -1853100
     });
     expect(nineSmart?.cashTimeline).toEqual([
-      { quarter: "Q1", balance: 148400 },
-      { quarter: "Q2", balance: 74200 },
-      { quarter: "Q3", balance: 0 }
+      { quarter: "Q1", balance: 386000 },
+      { quarter: "Q2", balance: 382000 },
+      { quarter: "Q3", balance: -1853100 }
     ]);
 
     const tenSmart = plan.linePlanOptions.find(
@@ -303,14 +367,56 @@ describe("buildOperationPlan line plan comparison", () => {
     );
     expect(tenSmart).toMatchObject({
       cashPositiveUntilDelivery: false,
-      adPointCash: 15800,
+      adPointCash: 0,
       reasonableAdAmount: 0,
-      minPreDeliveryCash: -132600
+      minPreDeliveryCash: -2401000
     });
     expect(tenSmart?.cashTimeline).toEqual([
-      { quarter: "Q1", balance: 15800 },
-      { quarter: "Q2", balance: -58400 },
-      { quarter: "Q3", balance: -132600 }
+      { quarter: "Q1", balance: 86000 },
+      { quarter: "Q2", balance: 82000 },
+      { quarter: "Q3", balance: -2401000 }
     ]);
+  });
+
+  test("prefers zero-transfer automatic lines for an opening profit-and-expand strategy", () => {
+    const plan = buildOperationPlan(autoFirstScenarioRulesUpload(), largeDemandMarketRows, 20);
+    expect(plan.targetY1Row?.product).toBe("P2");
+    expect(plan.recommendedLine?.name).toBe("\u81ea\u52a8\u7ebf");
+    expect(plan.recommendedLineCount).toBe(8);
+    expect(plan.estimatedY1Capacity).toBe(288);
+    expect(plan.linePlanOptions[0]?.lineName).toBe("\u81ea\u52a8\u7ebf");
+    const tenAuto = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u81ea\u52a8\u7ebf" && option.lineCount === 10
+    );
+    expect(tenAuto).toMatchObject({
+      targetOrderQuantity: 360,
+      targetRank: 2,
+      cashPositiveUntilDelivery: false,
+      adPointCash: 310100,
+      requiredAdAmount: 657072,
+      reasonableAdAmount: 310100,
+      adFundingGap: 346972
+    });
+    const recommendedAuto = plan.linePlanOptions.find(
+      (option) => option.lineName === "\u81ea\u52a8\u7ebf" && option.lineCount === 8
+    );
+    expect(recommendedAuto).toMatchObject({
+      targetOrderQuantity: 288,
+      targetRank: 2,
+      cashPositiveUntilDelivery: true,
+      minPreDeliveryCash: 310742.4
+    });
+    expect(recommendedAuto?.capacityFormula).toContain("\u9ad8\u7ea7\u5de5\u6fc0\u52b1\u5230100%");
+    expect(recommendedAuto?.earlyFees.map((fee) => fee.label)).toContain(
+      "\u9ad8\u7ea7\u5de5\u6fc0\u52b1\u5230100%"
+    );
+    expect(plan.openingActions.join("\n")).toContain("Y1 \u5148\u7528\u81ea\u52a8\u7ebf");
+    expect(plan.yearlyDecisions[0]?.recommendedLineName).toBe("\u667a\u80fd\u7ebf");
+    expect(plan.yearlyDecisions[0]?.lineMix.map((line) => `${line.lineName}×${line.count}`).join("\n")).toContain(
+      "\u81ea\u52a8\u7ebf×8"
+    );
+    expect(plan.yearlyDecisions[0]?.actions.join("\n")).toContain("\u63a8\u8350\u8865 \u667a\u80fd\u7ebf");
+    expect(plan.yearlyDecisions[0]?.lineComparison.join("\n")).toContain("\u4ea7\u80fd\u5dee");
+    expect(plan.yearlyDecisions[1]?.actions.join("\n")).toContain("\u63a8\u8350\u8865");
   });
 });

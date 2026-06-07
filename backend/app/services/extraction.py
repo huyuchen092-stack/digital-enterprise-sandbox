@@ -62,6 +62,7 @@ class ExtractionService:
 
     def _extract_xlsx(self, path: str, source_file: str) -> list[ExtractedFragment]:
         workbook = openpyxl.load_workbook(path, data_only=True)
+        formula_workbook = openpyxl.load_workbook(path, data_only=False)
         fragments: list[ExtractedFragment] = []
 
         try:
@@ -78,8 +79,25 @@ class ExtractionService:
                                 kind="table",
                             )
                         )
+
+            for worksheet in formula_workbook.worksheets:
+                value_sheet = workbook[worksheet.title]
+                for row in worksheet.iter_rows():
+                    for cell in row:
+                        if isinstance(cell.value, str) and cell.value.startswith("="):
+                            cached_value = value_sheet[cell.coordinate].value
+                            fragments.append(
+                                ExtractedFragment(
+                                    text=f"{cell.coordinate} {cell.value} => {cached_value}",
+                                    source_file=source_file,
+                                    source_location=f"sheet {worksheet.title} cell {cell.coordinate}",
+                                    confidence=1.0,
+                                    kind="formula",
+                                )
+                            )
         finally:
             workbook.close()
+            formula_workbook.close()
 
         return fragments
 

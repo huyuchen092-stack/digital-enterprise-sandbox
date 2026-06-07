@@ -1,6 +1,18 @@
 import { useMemo, useState } from "react";
-import { BarChart3, ClipboardCheck, Database, Settings2 } from "lucide-react";
-import { uploadDocument } from "./api/client";
+import {
+  BarChart3,
+  Bot,
+  ClipboardCheck,
+  Database,
+  FileCheck2,
+  LineChart,
+  Radar,
+  Send,
+  Settings2,
+  ShieldCheck,
+  Trophy
+} from "lucide-react";
+import { askSandboxAgent, uploadDocument } from "./api/client";
 import {
   buildMarketAnalysis,
   findGroupCountEvidence,
@@ -10,7 +22,7 @@ import {
 import { buildRuleParameters } from "./analysis/ruleParameters";
 import { buildOperationPlan } from "./analysis/simulationPlan";
 import { ParameterTable } from "./components/ParameterTable";
-import type { DocumentType, DocumentUploadResponse, ParameterCandidate } from "./types";
+import type { AgentChatResponse, DocumentType, DocumentUploadResponse, ParameterCandidate } from "./types";
 
 type SectionId = "import" | "parameters" | "market" | "simulation";
 
@@ -40,10 +52,16 @@ const sectionCopy: Record<SectionId, { title: string; description: string }> = {
   }
 };
 
+const sectionStatusLabels: Record<SectionId, string> = {
+  import: "资料",
+  parameters: "校验",
+  market: "市场",
+  simulation: "推演"
+};
+
 const initialParameters: ParameterCandidate[] = [];
 
 const groupCountParameterKey = "market.group_count";
-
 function App() {
   const [activeSection, setActiveSection] = useState<SectionId>("import");
   const [parameters, setParameters] = useState<ParameterCandidate[]>(initialParameters);
@@ -51,6 +69,10 @@ function App() {
   const [uploadingType, setUploadingType] = useState<DocumentType | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [manualGroupCount, setManualGroupCount] = useState("");
+  const [agentQuestion, setAgentQuestion] = useState("帮我制定第一年方案");
+  const [agentAnswer, setAgentAnswer] = useState<AgentChatResponse | null>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
 
   const unconfirmedCriticalCount = useMemo(
     () =>
@@ -103,6 +125,37 @@ function App() {
     () => buildOperationPlan(uploads.rules, marketAnalysis.rows, marketAnalysis.groupCount),
     [marketAnalysis.groupCount, marketAnalysis.rows, uploads.rules]
   );
+  const totalFragments =
+    (uploads.rules?.fragments.length ?? 0) +
+    (uploads.market?.fragments.length ?? 0) +
+    (uploads.knowledge?.fragments.length ?? 0);
+  const confirmedParameterCount = parameters.filter((parameter) => parameter.status === "confirmed").length;
+  const readinessItems = [
+    {
+      label: "规则参数",
+      value: uploads.rules ? "已导入" : "待导入",
+      ready: Boolean(uploads.rules),
+      Icon: FileCheck2
+    },
+    {
+      label: "市场详单",
+      value: uploads.market ? `${marketAnalysis.rows.length} 行` : "待导入",
+      ready: marketAnalysis.rows.length > 0,
+      Icon: LineChart
+    },
+    {
+      label: "组数确认",
+      value: marketAnalysis.groupCount ? `${formatMarketNumber(marketAnalysis.groupCount)} 组` : "待确认",
+      ready: Boolean(marketAnalysis.groupCount),
+      Icon: ShieldCheck
+    },
+    {
+      label: "预算证据",
+      value: operationPlan.linePlanOptions.length > 0 ? `${operationPlan.linePlanOptions.length} 案` : "待推演",
+      ready: operationPlan.linePlanOptions.length > 0,
+      Icon: Radar
+    }
+  ];
   function updateParameterStatus(key: string, status: ParameterCandidate["status"]) {
     setParameters((current) =>
       current.map((parameter) => (parameter.key === key ? { ...parameter, status } : parameter))
@@ -223,6 +276,58 @@ function App() {
     upsertGroupCountParameter(value, "confirmed", "人工输入", "市场分析页", 1);
   }
 
+  async function askAgent(question = agentQuestion) {
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) {
+      return;
+    }
+
+    setAgentQuestion(trimmedQuestion);
+    setAgentLoading(true);
+    setAgentError(null);
+    try {
+      const fragments = [
+        ...(uploads.rules?.fragments ?? []),
+        ...(uploads.market?.fragments ?? []),
+        ...(uploads.knowledge?.fragments ?? [])
+      ];
+      const marketRows = marketAnalysis.rows.map((row) => ({
+        year: row.year,
+        product: row.product,
+        capacity: row.capacity,
+        groupAverageCapacity: row.groupAverageCapacity,
+        price: row.price,
+        cost: row.cost,
+        unitMargin: row.unitMargin,
+        marginRate: row.marginRate,
+        source: row.source
+      }));
+      const response = await askSandboxAgent({
+        question: trimmedQuestion,
+        fragments,
+        parameters,
+        market_rows: marketRows,
+        rule_summary: {
+          groupCount: marketAnalysis.groupCount,
+          detectedGroupCount: marketAnalysis.detectedGroupCount,
+          pendingOcrCount: marketAnalysis.pendingOcrCount,
+          firstYearOpening: {
+            initialCapital: operationPlan.initialCapital,
+            recommendedLine: operationPlan.recommendedLine?.name ?? null,
+            recommendedLineCount: operationPlan.recommendedLineCount,
+            estimatedY1Capacity: operationPlan.estimatedY1Capacity,
+            missingEvidence: operationPlan.missingEvidence
+          }
+        }
+      });
+      setAgentAnswer(response);
+    } catch (error) {
+      setAgentError(error instanceof Error ? error.message : "智能体请求失败");
+    } finally {
+      setAgentLoading(false);
+    }
+  }
+
   function renderUploadResult(documentType: DocumentType) {
     const result = uploads[documentType];
     if (!result) {
@@ -257,7 +362,7 @@ function App() {
           <div className="upload-strip">
             <Database size={22} aria-hidden="true" />
             <div>
-              <strong>规则和市场数据上传</strong>
+              <strong>赛题资料解析台</strong>
               <p>支持 Word、PDF、Excel、图片。模糊 OCR 会标记为待确认，不会编造数据；做方案的方法论已经内置。</p>
             </div>
           </div>
@@ -561,8 +666,8 @@ function App() {
                         <th>目标订单</th>
                         <th>广告目标</th>
                         <th>前期费用</th>
-                        <th>广告时点现金</th>
-                        <th>合理广告额</th>
+                        <th>广告现金</th>
+                        <th>广告预算</th>
                         <th>净利润</th>
                         <th>交货前现金</th>
                       </tr>
@@ -590,9 +695,25 @@ function App() {
                                 .join("；")}
                             </small>
                           </td>
-                          <td>{formatMarketNumber(option.adPointCash)}</td>
-                          <td>{formatMarketNumber(option.reasonableAdAmount)}</td>
-                          <td>{formatMarketNumber(option.netProfit)}</td>
+                          <td>
+                            <strong>{formatMarketNumber(option.adPointCash)}</strong>
+                            <small>
+                              未融资 {formatMarketNumber(option.adAvailableCashBeforeFinancing)}；短贷到账{" "}
+                              {formatMarketNumber(option.plannedLoanDraw)}
+                            </small>
+                          </td>
+                          <td>
+                            <strong>可投 {formatMarketNumber(option.reasonableAdAmount)}</strong>
+                            <small>
+                              所需 {formatMarketNumber(option.requiredAdAmount)}；缺口{" "}
+                              {formatMarketNumber(option.adFundingGap)}
+                            </small>
+                            {option.adBudgetSource && <small>{option.adBudgetSource}</small>}
+                          </td>
+                          <td>
+                            <strong>{formatMarketNumber(option.netProfit)}</strong>
+                            {option.profitFormula && <small>{option.profitFormula}</small>}
+                          </td>
                           <td>
                             <strong>{option.cashPositiveUntilDelivery ? "保持为正" : "需减线/融资"}</strong>
                             <small>
@@ -611,9 +732,9 @@ function App() {
           </section>
         )}
 
-        {marketAnalysis.rows.length > 0 && (
-          <section className="simulation-card" aria-label="Y1-Y4 运营决策">
-            <h4>Y1-Y4 运营决策</h4>
+        {marketAnalysis.rows.length > 0 && operationPlan.yearlyDecisions.length > 0 && (
+          <section className="simulation-card" aria-label="Y1-Y4 产线策略">
+            <h4>Y1-Y4 产线策略</h4>
             <div className="decision-grid">
               {operationPlan.yearlyDecisions.map((decision) => (
                 <div className="quarter-card" key={decision.year}>
@@ -628,21 +749,36 @@ function App() {
                       </strong>
                     </span>
                     <span>
-                      组均：
-                      <strong>{formatMarketNumber(decision.targetDemand)}</strong>
+                      推荐补线：
+                      <strong>
+                        {decision.recommendedLineName
+                          ? `${decision.recommendedLineName} × ${formatMarketNumber(decision.recommendedNewLineCount)}`
+                          : "待确认"}
+                      </strong>
                     </span>
                     <span>
-                      线数：
-                      <strong>{formatMarketNumber(decision.targetLineCount)}</strong>
+                      目标产能：
+                      <strong>{formatMarketNumber(decision.targetCapacity)}</strong>
                     </span>
                     <span>
-                      新增：
-                      <strong>{formatMarketNumber(decision.newLineCount)}</strong>
+                      产能差额：
+                      <strong>{formatMarketNumber(decision.capacityGap)}</strong>
                     </span>
                   </div>
+                  {decision.lineMix.length > 0 && (
+                    <p className="decision-summary">
+                      线型组合：
+                      {decision.lineMix
+                        .map((item) => `${item.lineName}×${item.count}（${formatMarketNumber(item.capacity)}）`)
+                        .join("、")}
+                    </p>
+                  )}
                   <ul>
                     {decision.actions.map((action) => (
                       <li key={action}>{action}</li>
+                    ))}
+                    {decision.lineComparison.map((item) => (
+                      <li key={item}>{item}</li>
                     ))}
                     {decision.checks.map((check) => (
                       <li key={check}>{check}</li>
@@ -659,6 +795,74 @@ function App() {
             当前还不能输出第一年或后四年运营方案。请先导入规则文件、市场订单和参赛组数；缺少任一关键证据时，系统不会编造产能、毛利或广告决策。
           </div>
         )}
+
+        <section className="simulation-card agent-card" aria-label="沙盘智能体问答">
+          <div className="agent-header">
+            <span className="agent-avatar" aria-hidden="true">
+              <Bot size={22} />
+            </span>
+            <div>
+              <h4>沙盘方案智能体</h4>
+              <p>
+                基于已导入规则、市场、参数和全局争一指令回答；可问第一年方案、市场选择、四年战略、广告压制、现金流或拆线。
+              </p>
+            </div>
+            <span className="agent-context-chip">
+              上下文 {((uploads.rules?.fragments.length ?? 0) + (uploads.market?.fragments.length ?? 0) + (uploads.knowledge?.fragments.length ?? 0)).toLocaleString()} 片段
+            </span>
+          </div>
+          <div className="agent-quick-actions" aria-label="快捷问题">
+            {["帮我制定第一年方案", "分析市场选择和广告顺位", "制定四年运营战略", "判断补自动还是补智能"].map((question) => (
+              <button
+                className="ghost-button"
+                type="button"
+                key={question}
+                onClick={() => void askAgent(question)}
+                disabled={agentLoading}
+              >
+                {question}
+              </button>
+            ))}
+          </div>
+          <form
+            className="agent-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void askAgent();
+            }}
+          >
+            <textarea
+              value={agentQuestion}
+              onChange={(event) => setAgentQuestion(event.currentTarget.value)}
+              rows={3}
+              aria-label="向沙盘智能体提问"
+              placeholder="例如：这题第一年怎么开局才能争一？市场应该选哪个？广告怎么投才能压制对手？"
+            />
+            <button className="action-button" type="submit" disabled={agentLoading || !agentQuestion.trim()}>
+              <Send size={16} aria-hidden="true" />
+              {agentLoading ? "分析中" : "提问"}
+            </button>
+          </form>
+          {agentError && (
+            <div className="state-panel error-panel" role="alert">
+              {agentError}
+            </div>
+          )}
+          {agentAnswer && (
+            <div className="agent-answer">
+              <div className="agent-answer-meta">
+                <span>任务：{agentAnswer.task}</span>
+                <span>模型：{agentAnswer.model}</span>
+              </div>
+              {agentAnswer.warnings.length > 0 && (
+                <div className="state-panel warning-panel">
+                  {agentAnswer.warnings.join("；")}
+                </div>
+              )}
+              <pre>{agentAnswer.answer}</pre>
+            </div>
+          )}
+        </section>
       </section>
     );
   }
@@ -672,7 +876,10 @@ function App() {
           <span className="brand-mark" aria-hidden="true">
             沙
           </span>
-          <h1>数智化沙盘</h1>
+          <div>
+            <h1>数智化沙盘</h1>
+            <p>经营推演指挥台</p>
+          </div>
         </div>
 
         <nav className="nav-list" aria-label="工作区">
@@ -681,17 +888,63 @@ function App() {
               className={id === activeSection ? "nav-button nav-button-active" : "nav-button"}
               type="button"
               key={id}
+              aria-label={label}
               aria-current={id === activeSection ? "page" : undefined}
               onClick={() => setActiveSection(id)}
             >
               <Icon size={18} aria-hidden="true" />
               <span>{label}</span>
+              <small>{sectionStatusLabels[id]}</small>
             </button>
           ))}
         </nav>
+
+        <div className="sidebar-brief" aria-label="当前推演状态">
+          <Trophy size={18} aria-hidden="true" />
+          <strong>争一模式</strong>
+          <span>规则不脱离，现金不断流，产能不保守。</span>
+        </div>
       </aside>
 
       <main className="main">
+        <section className="command-hero" aria-label="沙盘推演总览">
+          <div className="command-copy">
+            <p className="eyebrow">Competition Command Center</p>
+            <h2>企业经营沙盘智能推演</h2>
+            <p>
+              围绕市场霸主、最高有效产能和现金流不断裂，解析规则与详单，辅助制定 Y1-Y4 运营决策。
+            </p>
+          </div>
+          <div className="command-panel" aria-label="就绪度">
+            {readinessItems.map(({ label, value, ready, Icon }) => (
+              <div className={ready ? "readiness-card ready" : "readiness-card"} key={label}>
+                <Icon size={18} aria-hidden="true" />
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="ops-strip" aria-label="关键指标">
+          <div>
+            <span>证据片段</span>
+            <strong>{formatMarketNumber(totalFragments)}</strong>
+          </div>
+          <div>
+            <span>确认参数</span>
+            <strong>{formatMarketNumber(confirmedParameterCount)}</strong>
+          </div>
+          <div>
+            <span>待确认关键项</span>
+            <strong>{formatMarketNumber(unconfirmedCriticalCount)}</strong>
+          </div>
+          <div>
+            <span>候选方案</span>
+            <strong>{formatMarketNumber(operationPlan.linePlanOptions.length)}</strong>
+          </div>
+        </section>
+
         <header className="page-header">
           <div>
             <p className="eyebrow">Simulation Workbench</p>

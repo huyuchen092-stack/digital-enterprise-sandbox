@@ -52,3 +52,31 @@ export type DocumentUploadResponse = {
   pending_ocr_count: number;
   fragments: ExtractedFragment[];
 };
+
+export type AgentTask =
+  | "first_year_plan"
+  | "market_analysis"
+  | "four_year_strategy"
+  | "product_analysis"
+  | "line_analysis"
+  | "advertising_strategy"
+  | "cashflow_check"
+  | "line_replacement"
+  | "general_question";
+
+export type AgentChatRequest = {
+  question: string;
+  project_id?: number | null;
+  fragments?: ExtractedFragment[];
+  parameters?: ParameterCandidate[];
+  market_rows?: Array<Record<string, unknown>>;
+  rule_summary?: Record<string, unknown>;
+};
+
+export type AgentChatResponse = {
+  task: AgentTask;
+  answer: string;
+  model: string;
+  warnings: string[];
+  context_summary: string[];
+};
